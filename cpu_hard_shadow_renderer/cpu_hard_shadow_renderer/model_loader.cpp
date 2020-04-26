@@ -36,9 +36,8 @@ std::shared_ptr<model_loader> model_loader::create(const std::string file_path) 
 }
 
 bool obj_loader::load_model(std::string file_path, std::shared_ptr<mesh>& m) {
-	
 	if(!m) {
-		return false;
+		m = std::make_shared<mesh>();
 	}
 	m->file_path = file_path;
 	m->clear_vertices();
