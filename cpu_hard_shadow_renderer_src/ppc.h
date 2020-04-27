@@ -96,5 +96,5 @@ public:
 	std::string to_string();
 
 private:
-	float GetFocal();
+	float GetFocal() const;
 };

@@ -5,7 +5,7 @@
 
 using namespace glm;
 using namespace purdue;
-float ppc::GetFocal() {
+float ppc::GetFocal() const {
 	return static_cast<float>(_width / 2) / tan(_fov / 2.0f);
 }
 
@@ -132,7 +132,7 @@ void ppc::get_ray(int u, int v, vec3& ro, vec3& rd) const {
 }
 
 float ppc::get_focal() const {
-	return 0.5f * _height / std::tan(deg2rad(0.5f * _fov));
+	return 0.5f * _width / std::tan(deg2rad(0.5f * _fov));
 }
 
 std::string ppc::to_string() {

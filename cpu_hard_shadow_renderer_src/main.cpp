@@ -196,12 +196,16 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	vec3 target_center = render_target->compute_world_center();
 	
 	vec3 lowest_point = world_aabb.p0;
-
+	
+	/**
 	vec3 ground_height(0.0f);
 	float offset = ground_height.y - lowest_point.y;
 	render_target->m_world = glm::translate(vec3(0.0, offset, 0.0)) * render_target->m_world;
 	target_center.y += offset;
-	plane cur_plane = { ground_height, vec3(0.0f,1.0f,0.0f) };
+	
+	**/
+
+	plane cur_plane = { lowest_point, vec3(0.0f,1.0f,0.0f) };
 	
 	// set camera position
 	std::shared_ptr<ppc> cur_ppc = std::make_shared<ppc>(w, h, 65.0f);
@@ -209,7 +213,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	if (mesh_length < 0.1f)
 		mesh_length = 5.0f;
 	vec3 new_pos = target_center + 2.0f * vec3(0.0f, mesh_length * 0.3f, mesh_length);
-	cur_ppc->PositionAndOrient(new_pos, target_center, vec3(0.0f, 1.0f, 0.0f));
+	cur_ppc->PositionAndOrient(new_pos, lowest_point, vec3(0.0f, 1.0f, 0.0f));
 
 	// rasterize the 256x256 image to compute hard shadow
 	purdue::create_folder(output_folder);
@@ -279,9 +283,11 @@ void render_data(const std::string model_file, const std::string output_folder) 
 		output<< s;
 	    }
 	}	
-	output.close();
 	t.toc();
 	t.print_elapsed();
+	std::string total_time = t.to_string();
+	output << total_time << std::endl;
+	output.close();
 }
 
 int main(int argc, char *argv[]) {
