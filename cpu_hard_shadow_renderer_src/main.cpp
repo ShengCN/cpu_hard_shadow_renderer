@@ -112,16 +112,17 @@ bool hit_light(vec3 p, std::vector<glm::vec3> &world_verts, AABB& aabb, vec3 lig
 		return false;
 
 	bool ret = false;
-#pragma omp parallel for
+	volatile bool flag = false;
+#pragma omp parallel for shared(flag, ret)
 	for (int ti = 0; ti < world_verts.size() / 3; ++ti) {
+		if(flag) continue;
 		vec3 p0 = world_verts[3 * ti + 0];
 		vec3 p1 = world_verts[3 * ti + 1];
 		vec3 p2 = world_verts[3 * ti + 2];
 
 		if (ray_triangle_intersect(r, p0, p1, p2)) {
 #pragma omp critical 
-			{ret = true; }
-			break;
+		    {flag=true; ret=true;}
 		}
 	}
 
@@ -135,8 +136,8 @@ void raster_hard_shadow(const plane& grond_plane, std::shared_ptr<mesh>& target,
 	AABB aabb = target->compute_world_aabb();
 
 	// iterate over the output image
+// #pragma omp parallel for collapse(2) shared(out_img)
 	for (int j = 0; j < cur_ppc._height; ++j) {
-		std::cerr << "finish: " << (float)j / cur_ppc._height * 100.0f << "%" << "\r";
 		for (int i = 0; i < cur_ppc._width; ++i) {
 			// compute the intersection point with the plane
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
@@ -147,9 +148,11 @@ void raster_hard_shadow(const plane& grond_plane, std::shared_ptr<mesh>& target,
 			if (hit_light(intersect_pos, world_verts, aabb, light_pos)){
 				pixel_value = vec3(1.0f);
 			}
-
+// #pragma omp critical
 			{out_img.set_pixel(i, j, pixel_value); }
 		}
+	
+		// std::cerr << "finish: " << (float)j / cur_ppc._height * 100.0f << "%" << "\r";
 	}
 }
 
@@ -221,14 +224,14 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 int main(int argc, char *argv[]) {
 	// std::string testing_model = "E:/ds/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj";
-	if (argc != 2) {
+	if (argc != 3) {
 		std::cerr << "Please check your input! \n";
 		std::cerr << "Should be xx model_path out_folder \n";
 		return 0;
 	}
 
-	std::string model_file = argv[0];
-	std::string output_folder = argv[1];
+	std::string model_file = argv[1];
+	std::string output_folder = argv[2];
 
 	render_data(model_file, output_folder);
 	
