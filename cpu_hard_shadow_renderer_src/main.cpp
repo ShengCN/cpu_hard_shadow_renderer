@@ -1,5 +1,7 @@
 #include <iostream>
 #include <glm/mat3x3.hpp>
+#include <glm/gtx/transform.hpp>
+
 #include "omp.h"
 
 #include "common.h"
@@ -193,10 +195,24 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	std::string test_output = output_folder + "/" + "test.png";
 	image out_img(w, h);
 
-	glm::vec3 light_position = compute_light_pos(256, 170);
+	int camera_pitch_num = 3;
+	int target_rotation_num = 6;
+	
+	mat4 old_mat = render_target->m_world;
+	ppc  old_ppc = *cur_ppc;
+	std::string gt_string;
+	
+	vec3 render_target_center = render_target->compute_world_center();
+	float render_target_size = render_target->compute_world_aabb().diag_length();
+	// vec3 light_relative = render_target_center + render_target_size * vec3(0.0, 1.0, 0.9) * 2.0f;
+	float light_relative_length = glm::distance(old_light.m_verts[0], render_target_center) * 5.0f;
+	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size)*2.0f;
+
 	timer t;
 	t.tic();
+	
 	raster_hard_shadow(cur_plane, render_target, *cur_ppc, light_position, out_img);
+	
 	t.toc();
 	t.print_elapsed();
 
