@@ -56,11 +56,11 @@ vec3 plane_ppc_intersect(const plane& plane, const ray& cur_ray) {
 bool ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2) {
 	plane tri_plane = { p0, glm::cross(p1 - p0, p2 - p0) };
 	vec3 plane_intersect = plane_ppc_intersect(tri_plane, r);
-	glm::mat3x3 bary_m(p0 - r.ro, p1 - r.ro, p2 - r.ro);
-	glm::vec3 bary_coord = glm::inverse(bary_m) * (plane_intersect - r.ro);
+	glm::mat3x3 bary_m(p0 - r.ro, p1 - r.ro, p2 - r.ro); bary_m = bary_m * 10.0f;
+	glm::vec3 bary_coord = glm::inverse(bary_m) * (plane_intersect - r.ro) * 10.0f;
 
 	auto inside = [](float t) {
-		return t > 0.0f && t < 1.0f;
+		return t > 0.0f + 1e-3f && t < 1.0f-1e-3f;
 	};
 
 	return inside(bary_coord.x) && inside(bary_coord.y) && inside(bary_coord.z);
