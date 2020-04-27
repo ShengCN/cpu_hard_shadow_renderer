@@ -159,7 +159,7 @@ void mesh::set_matrix(const vec3 scale, const quat rot, const vec3 translate) {
 
 void mesh::recompute_normal() {
 	m_norms.clear();
-	size_t triangle_num = m_verts.size() / 3;
+	int triangle_num = m_verts.size() / 3;
 	for(int ti = 0; ti < triangle_num; ++ti) {
 		vec3 a = m_verts[3 * ti + 0];
 		vec3 b = m_verts[3 * ti + 1];

@@ -202,4 +202,9 @@ namespace purdue {
 
 		return str.substr(found + 1);
 	}
+
+	inline void create_folder(const std::string& folder) {
+		std::string command = "mkdir " + folder;
+		system(command.c_str());
+	}
 }

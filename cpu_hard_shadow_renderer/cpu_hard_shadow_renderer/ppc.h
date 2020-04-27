@@ -74,12 +74,12 @@ public:
 		}
 	}
 
-	vec3 GetRight();
-	vec3 GetUp();
-	vec3 GetViewVec() { return _front; }
+	vec3 GetRight() const;
+	vec3 GetUp() const;
+	vec3 GetViewVec() const { return _front; }
 	void PositionAndOrient(vec3 p, vec3 lookatP, vec3 up);
-	glm::mat4 GetP();
-	glm::mat4 GetV();
+	glm::mat4 GetP() const;
+	glm::mat4 GetV() const;
 	void Rotate_Axis(glm::vec3 O, glm::vec3 axis, float angled);	// only rotate ppc position
 	void Zoom(float delta);
 	void Keyboard(CameraMovement cm, float speed); // keyboard reactions
@@ -90,6 +90,8 @@ public:
 	void pan(double deg);
 	void tilt(double deg);
 	void pitch(double deg);
+	void get_ray(int u, int v, vec3& ro, vec3& rd) const;
+	float get_focal() const;
 
 	std::string to_string();
 
