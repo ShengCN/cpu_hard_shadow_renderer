@@ -146,8 +146,8 @@ namespace purdue {
 
 	private:
 		bool _is_ticed = false;
-		std::chrono::time_point<std::chrono::steady_clock> _tic;
-		std::chrono::time_point<std::chrono::steady_clock> _toc;
+		std::chrono::time_point<std::chrono::system_clock> _tic;
+		std::chrono::time_point<std::chrono::system_clock> _toc;
 	};
 
 	inline vec3 bary_centric_interpolate(vec3 a, vec3 b, vec3 c, vec3 bary_coord) {

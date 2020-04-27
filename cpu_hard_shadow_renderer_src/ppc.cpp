@@ -1,4 +1,4 @@
-#include "PPC.h"
+#include "ppc.h"
 #include <sstream>
 #include <glm/common.hpp>
 #include <glm/gtx/transform.hpp>

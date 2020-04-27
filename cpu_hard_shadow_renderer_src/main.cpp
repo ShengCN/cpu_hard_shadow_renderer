@@ -203,11 +203,11 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	out_img.save(test_output);
 }
 
-void main() {
+int main(int argc, char *argv[]) {
 	std::string testing_model = "E:/ds/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj";
 	
 	render_data(testing_model, "output");
 	
 	printf("finished \n");
-	system("pause");
+	return 0;
 }
