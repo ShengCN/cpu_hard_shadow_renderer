@@ -209,5 +209,4 @@ void main() {
 	render_data(testing_model, "output");
 	
 	printf("finished \n");
-	system("pause");
 }
