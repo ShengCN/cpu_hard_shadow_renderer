@@ -204,9 +204,17 @@ void render_data(const std::string model_file, const std::string output_folder) 
 }
 
 int main(int argc, char *argv[]) {
-	std::string testing_model = "E:/ds/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj";
-	
-	render_data(testing_model, "output");
+	// std::string testing_model = "E:/ds/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj";
+	if (argc != 2) {
+		std::cerr << "Please check your input! \n";
+		std::cerr << "Should be xx model_path out_folder \n";
+		return 0;
+	}
+
+	std::string model_file = argv[0];
+	std::string output_folder = argv[1];
+
+	render_data(model_file, output_folder);
 	
 	printf("finished \n");
 	return 0;
