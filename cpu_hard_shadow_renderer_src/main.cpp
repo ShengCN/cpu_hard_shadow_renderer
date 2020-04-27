@@ -175,7 +175,7 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 	//todo
 	float x_fract = (float)x / w, y_fract = (float)y / h;
 	deg alpha, beta;
-	alpha = x_fract * 360.0f; beta = y_fract * 180.0f - 90.0f;
+	alpha = x_fract * 360.0f - 90.0f; beta = y_fract * 180.0f - 90.0f;
 	return vec3(cos(deg2rad(beta)) * cos(deg2rad(alpha)), sin(deg2rad(beta)), cos(deg2rad(beta)) * sin(deg2rad(alpha)));
 }
 
@@ -194,9 +194,14 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	render_target->normalize_position_orientation();
 	AABB world_aabb = render_target->compute_world_aabb();
 	vec3 target_center = render_target->compute_world_center();
+	
+	vec3 lowest_point = world_aabb.p0;
 
-	vec3 foot_position = world_aabb.p0;
-	plane cur_plane = { foot_position, vec3(0.0f,1.0f,0.0f) };
+	vec3 ground_height(0.0f);
+	float offset = ground_height.y - lowest_point.y;
+	render_target->m_world = glm::translate(vec3(0.0, offset, 0.0)) * render_target->m_world;
+	target_center.y += offset;
+	plane cur_plane = { ground_height, vec3(0.0f,1.0f,0.0f) };
 	
 	// set camera position
 	std::shared_ptr<ppc> cur_ppc = std::make_shared<ppc>(w, h, 65.0f);
@@ -261,14 +266,20 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
 				out_img.save(output_fname);
 				
-				std::cout << "Finish: " << (float)counter / total_counter << "% \r";
+				std::cerr << "Finish: " << (float)counter / total_counter * 100.0f << "% \r";
 			}
 		}
 
 		// set back rotation
 		render_target->m_world = old_mat;
 	}
-	
+        std::ofstream output(output_folder + "/ground_truth.txt");
+ 	if(output.is_open()) {
+	    for(auto &s:gt_str) {
+		output<< s;
+	    }
+	}	
+	output.close();
 	t.toc();
 	t.print_elapsed();
 }
