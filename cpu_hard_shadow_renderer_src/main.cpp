@@ -11,6 +11,19 @@
 
 int w = 256, h = 256;
 using namespace purdue;
+int i_begin = 256 - (60.0 / 90.0) * 256 * 0.5;
+
+struct pixel_pos {
+	float x, y;
+
+	std::string to_string() {
+		std::ostringstream oss;
+		oss << x << "," << y;
+		return oss.str();
+	}
+};
+
+std::vector<pixel_pos> ibl_map;
 
 bool load_mesh(const std::string fname, std::shared_ptr<mesh> &m) {
 	auto loader = model_loader::create(fname);
@@ -195,7 +208,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 	// rasterize the 256x256 image to compute hard shadow
 	purdue::create_folder(output_folder);
-	std::string test_output = output_folder + "/" + "test.png";
 	image out_img(w, h);
 
 	int camera_pitch_num = 3;
@@ -203,23 +215,62 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
-	std::string gt_string;
 	
 	vec3 render_target_center = render_target->compute_world_center();
 	float render_target_size = render_target->compute_world_aabb().diag_length();
-	// vec3 light_relative = render_target_center + render_target_size * vec3(0.0, 1.0, 0.9) * 2.0f;
-	float light_relative_length = glm::distance(old_light.m_verts[0], render_target_center) * 5.0f;
-	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size)*2.0f;
+	float light_relative_length = 5.0f;
+	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size) * 2.0f;
+	float delta_target_rot = 360.0 / target_rotation_num;
+	float delta_camera_pitch = 30.0 / camera_pitch_num;
+	std::vector<std::string> gt_str;
 
 	timer t;
 	t.tic();
-	
-	raster_hard_shadow(cur_plane, render_target, *cur_ppc, light_position, out_img);
+
+	int counter = 0;
+	int total_counter = target_rotation_num * camera_pitch_num * ibl_map.size();
+	for (int trni = 0; trni < target_rotation_num; ++trni) {
+		float target_rot = lerp(0.0, 360.0, (float)trni / target_rotation_num) + delta_target_rot * random_float();
+		// set rotation
+		render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
+
+		for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
+			float camera_pitch = 15.0 + lerp(0.0, 30.0, (float)cpni / camera_pitch_num) + delta_camera_pitch * random_float();
+			// set camera rotation
+			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
+				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
+				vec3(0.0, 1.0, 0.0));
+
+			for (auto &light_pixel_pos : ibl_map) {
+				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y);
+				raster_hard_shadow(cur_plane, render_target, *cur_ppc, light_position, out_img);
+
+				char buff[100];
+				snprintf(buff, sizeof(buff), "%07d", counter++);
+				std::string cur_prefix = buff;
+
+				std::ostringstream oss;
+				oss << cur_prefix << ",";
+				oss << light_pixel_pos.to_string() << ",";
+				oss << to_string(cur_ppc->_position) << ",";
+				oss << target_rot << ",";
+				oss << to_string(render_target_center) << ",";
+				oss << to_string(light_position) << std::endl;
+				gt_str.push_back(oss.str());
+
+				std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
+				out_img.save(output_fname);
+				
+				std::cout << "Finish: " << (float)counter / total_counter << "% \r";
+			}
+		}
+
+		// set back rotation
+		render_target->m_world = old_mat;
+	}
 	
 	t.toc();
 	t.print_elapsed();
-
-	out_img.save(test_output);
 }
 
 int main(int argc, char *argv[]) {
@@ -228,6 +279,10 @@ int main(int argc, char *argv[]) {
 		std::cerr << "Please check your input! \n";
 		std::cerr << "Should be xx model_path out_folder \n";
 		return 0;
+	}
+
+	for (int i = i_begin; i < 256; ++i) for (int j = 0; j < 512; ++j) {
+		ibl_map.push_back({ (float)j, (float)i });
 	}
 
 	std::string model_file = argv[1];
