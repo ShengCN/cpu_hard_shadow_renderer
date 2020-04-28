@@ -42,12 +42,11 @@ struct image {
 	}
 
 	void set_pixel(int u, int v, vec3 p) {
-		//todo
 		size_t ind = (h - 1 - v) * w + u;
-		reinterpret_cast<char*>(&(pixels.at(ind)))[0] = (char)(255.9 * p.x);
-		reinterpret_cast<char*>(&(pixels.at(ind)))[1] = (char)(255.9 * p.y);
-		reinterpret_cast<char*>(&(pixels.at(ind)))[2] = (char)(255.9 * p.z);
-		reinterpret_cast<char*>(&(pixels.at(ind)))[3] = (char)(255);
+		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[0] = (unsigned char)(255.0 * p.x);
+		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[1] = (unsigned char)(255.0 * p.y);
+		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[2] = (unsigned char)(255.0 * p.z);
+		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[3] = (unsigned char)(255);
 	}
 
 	bool save(const std::string fname) {
@@ -68,17 +67,41 @@ vec3 plane_ppc_intersect(const plane& plane, const ray& cur_ray) {
 	return cur_ray.ro + cur_ray.rd * t;
 }
 
+constexpr float kEpsilon = 1e-8; 
 bool ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2) {
-	plane tri_plane = { p0, glm::cross(p1 - p0, p2 - p0) };
-	vec3 plane_intersect = plane_ppc_intersect(tri_plane, r);
-	glm::mat3x3 bary_m(p0 - r.ro, p1 - r.ro, p2 - r.ro); bary_m = bary_m * 10.0f;
-	glm::vec3 bary_coord = glm::inverse(bary_m) * (plane_intersect - r.ro) * 10.0f;
+// 	plane tri_plane = { p0, glm::cross(p1 - p0, p2 - p0) };
+// 	vec3 plane_intersect = plane_ppc_intersect(tri_plane, r);
+//     float factor = 1e4f;
+// 	glm::mat3x3 bary_m(p0 - r.ro, p1 - r.ro, p2 - r.ro); bary_m = bary_m * factor;
+//     float det = glm::determinant(bary_m);
+//     if(std::abs(det) < kEpsilon)
+//         return false;
+    
+// 	glm::vec3 bary_coord = glm::inverse(bary_m) * (plane_intersect - r.ro) * factor;
 
-	auto inside = [](float t) {
-		return t > 0.0f + 1e-3f && t < 1.0f-1e-3f;
-	};
+// 	auto inside = [](float t) {
+// 		return t > 0.0f + 1e-3f && t < 1.0f-1e-3f;
+// 	};
 
-	return inside(bary_coord.x) && inside(bary_coord.y) && inside(bary_coord.z);
+// 	return inside(bary_coord.x) && inside(bary_coord.y) && inside(bary_coord.z);
+
+    vec3 v0v1 = p1 - p0; 
+    vec3 v0v2 = p2 - p0; 
+    vec3 pvec = glm::cross(r.rd, v0v2); 
+    float det = glm::dot(v0v1, pvec); 
+    // if the determinant is negative the triangle is backfacing
+    // if the determinant is close to 0, the ray misses the triangle
+    if (det < kEpsilon) return false; 
+    float invDet = 1 / det;  
+    vec3 tvec = r.ro - p0; 
+    float u = glm::dot(tvec,pvec) * invDet; 
+    if (u < 0 || u > 1) return false; 
+ 
+    vec3 qvec = glm::cross(tvec, v0v1); 
+    float v = glm::dot(r.rd, qvec) * invDet; 
+    if (v < 0 || u + v > 1) return false; 
+    return true; 
+    
 }
 
 bool ray_aabb_intersect(const ray&r, const AABB& aabb) {
@@ -126,7 +149,7 @@ bool hit_light(vec3 p, std::vector<glm::vec3> &world_verts, AABB& aabb, vec3 lig
 
 	bool ret = false;
 	volatile bool flag = false;
-#pragma omp parallel for shared(flag, ret)
+#pragma omp parallel for shared(flag, ret, world_verts)
 	for (int ti = 0; ti < world_verts.size() / 3; ++ti) {
 		if(flag) continue;
 		vec3 p0 = world_verts[3 * ti + 0];
@@ -156,10 +179,10 @@ void raster_hard_shadow(const plane& grond_plane, std::shared_ptr<mesh>& target,
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
 			vec3 intersect_pos = plane_ppc_intersect(grond_plane, cur_ray);
 
-			vec3 pixel_value(0.0f);
+			vec3 pixel_value(1.0f);
 			// compute if it's hit by the light
 			if (hit_light(intersect_pos, world_verts, aabb, light_pos)){
-				pixel_value = vec3(1.0f);
+				pixel_value = vec3(0.0f);
 			}
 // #pragma omp critical
 			{out_img.set_pixel(i, j, pixel_value); }
@@ -196,16 +219,10 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	vec3 target_center = render_target->compute_world_center();
 	
 	vec3 lowest_point = world_aabb.p0;
-	
-	/**
-	vec3 ground_height(0.0f);
-	float offset = ground_height.y - lowest_point.y;
+	float offset = 0.0f - lowest_point.y;
 	render_target->m_world = glm::translate(vec3(0.0, offset, 0.0)) * render_target->m_world;
-	target_center.y += offset;
-	
-	**/
-
-	plane cur_plane = { lowest_point, vec3(0.0f,1.0f,0.0f) };
+    
+	plane cur_plane = { vec3(0.0f), vec3(0.0f, 1.0f, 0.0f) };
 	
 	// set camera position
 	std::shared_ptr<ppc> cur_ppc = std::make_shared<ppc>(w, h, 65.0f);
@@ -227,7 +244,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	
 	vec3 render_target_center = render_target->compute_world_center();
 	float render_target_size = render_target->compute_world_aabb().diag_length();
-	float light_relative_length = 5.0f;
+	float light_relative_length = 11.0f;
 	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size) * 2.0f;
 	float delta_target_rot = 360.0 / target_rotation_num;
 	float delta_camera_pitch = 30.0 / camera_pitch_num;
@@ -239,19 +256,20 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	int counter = 0;
 	int total_counter = target_rotation_num * camera_pitch_num * ibl_map.size();
 	for (int trni = 0; trni < target_rotation_num; ++trni) {
-		float target_rot = lerp(0.0, 360.0, (float)trni / target_rotation_num) + delta_target_rot * random_float();
+		float target_rot = lerp(0.0, 360.0, (float)trni / target_rotation_num);
 		// set rotation
 		render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
 
 		for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
-			float camera_pitch = 15.0 + lerp(0.0, 30.0, (float)cpni / camera_pitch_num) + delta_camera_pitch * random_float();
+			float camera_pitch = 15.0 + lerp(0.0, 30.0, (float)cpni / camera_pitch_num);
 			// set camera rotation
 			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
 				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
 				vec3(0.0, 1.0, 0.0));
-
+            
 			for (auto &light_pixel_pos : ibl_map) {
-				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y);
+				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
+                
 				raster_hard_shadow(cur_plane, render_target, *cur_ppc, light_position, out_img);
 
 				char buff[100];
