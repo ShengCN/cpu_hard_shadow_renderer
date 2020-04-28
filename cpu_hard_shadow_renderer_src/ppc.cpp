@@ -23,23 +23,6 @@ ppc::~ppc()
 {
 }
 
-vec3 ppc::GetRight() const {
-	vec3 view = GetViewVec();
-
-	return cross(view, _worldUp);
-}
-
-vec3 ppc::GetUp() const {
-	return cross(GetRight(), GetViewVec());
-}
-
-void ppc::PositionAndOrient(vec3 p, vec3 lookatP, vec3 up)
-{
-	_position = p;
-	_front = glm::normalize(lookatP - p);
-	_worldUp = up;
-}
-
 glm::mat4 ppc::GetP() const {
 	return glm::perspective(deg2rad(_fov), (float)_width / (float)_height, _near, _far);
 }
@@ -116,23 +99,6 @@ void ppc::pitch(double deg)
 	vec3 up = GetUp();
 	_front += up * float(deg);
 	_front = glm::normalize(_front);
-}
-
-void ppc::get_ray(int u, int v, vec3& ro, vec3& rd) const {
-	float focal = get_focal();
-	vec3 right = glm::normalize(GetRight());
-	vec3 up = glm::normalize(GetUp());
-	vec3 front = glm::normalize(GetViewVec());
-	
-	ro = _position;
-	int center_u = _width / 2, center_v = _height / 2;
-
-	rd = front * focal + (u - center_u + 0.5f) * right + (v - center_v + 0.5f) * up;
-	rd = glm::normalize(rd);
-}
-
-float ppc::get_focal() const {
-	return 0.5f * _width / std::tan(deg2rad(0.5f * _fov));
 }
 
 std::string ppc::to_string() {

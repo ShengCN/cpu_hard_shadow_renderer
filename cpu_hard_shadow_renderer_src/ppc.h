@@ -6,6 +6,12 @@
 
 #include "common.h"
 
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV __host__ __device__
+#else
+#define CUDA_HOSTDEV
+#endif
+
 /*
  *
  *	Planer Pinhole camera.
@@ -73,11 +79,28 @@ public:
 			return false;
 		}
 	}
+   
+    CUDA_HOSTDEV
+	vec3 GetRight() const {
+        vec3 view = GetViewVec();
 
-	vec3 GetRight() const;
-	vec3 GetUp() const;
+        return cross(view, _worldUp);
+    }
+	
+    CUDA_HOSTDEV
+    vec3 GetUp() const {
+        return cross(GetRight(), GetViewVec());
+    }
+    CUDA_HOSTDEV
 	vec3 GetViewVec() const { return _front; }
-	void PositionAndOrient(vec3 p, vec3 lookatP, vec3 up);
+    
+    CUDA_HOSTDEV
+	void PositionAndOrient(vec3 p, vec3 lookatP, vec3 up){
+        _position = p;
+        _front = glm::normalize(lookatP - p);
+        _worldUp = up;
+    }
+    
 	glm::mat4 GetP() const;
 	glm::mat4 GetV() const;
 	void Rotate_Axis(glm::vec3 O, glm::vec3 axis, float angled);	// only rotate ppc position
@@ -90,8 +113,26 @@ public:
 	void pan(double deg);
 	void tilt(double deg);
 	void pitch(double deg);
-	void get_ray(int u, int v, vec3& ro, vec3& rd) const;
-	float get_focal() const;
+    
+   CUDA_HOSTDEV
+	void get_ray(int u, int v, vec3& ro, vec3& rd) const {
+        float focal = get_focal();
+        vec3 right = glm::normalize(GetRight());
+        vec3 up = glm::normalize(GetUp());
+        vec3 front = glm::normalize(GetViewVec());
+
+        ro = _position;
+        int center_u = _width / 2, center_v = _height / 2;
+
+        rd = front * focal + (u - center_u + 0.5f) * right + (v - center_v + 0.5f) * up;
+        rd = glm::normalize(rd);
+    }
+
+   CUDA_HOSTDEV
+    float get_focal() const {
+        float rad = 0.5f * _fov /180.0 * 3.1415926;
+        return 0.5f * _width / std::tan(rad);
+    }
 
 	std::string to_string();
 

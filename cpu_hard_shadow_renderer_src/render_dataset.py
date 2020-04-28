@@ -2,12 +2,19 @@ import os
 import multiprocessing
 from functools import partial
 from tqdm import tqdm
+import argparse
 
 def worker(input_param):
     model, output_folder = input_param
     os.system('build/hard_shadow {} {}'.format(model, output_folder))
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('proc', default=1,type=int, help='how many processing')
+    args = parser.parse_args()
+
+    print('{} processing is using'.format(args.proc))
+
     model_folder = '../models/'
     model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
     print('There are {} model files'.format(len(model_files)))
@@ -23,7 +30,7 @@ if __name__ == '__main__':
         
     input_param = zip(model_files, output_list)
     # processor_num = len(model_files)
-    processor_num = 1
+    processor_num = args.proc
     total = len(model_files)
     with multiprocessing.Pool(processor_num) as pool:
         for i,_ in enumerate(pool.imap_unordered(worker, input_param), 1):
