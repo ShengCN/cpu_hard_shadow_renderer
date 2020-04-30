@@ -172,6 +172,65 @@ void set_pixel(vec3 c, unsigned int& p) {
 	reinterpret_cast<unsigned char*>(&p)[3] = (unsigned char)(255);
 }
 
+/*
+__global__
+void raster_hard_shadow(plane* grond_plane, 
+						glm::vec3* world_verts, 
+	                    int N,
+	                    AABB* aabb,
+	                    ppc cur_ppc,
+	                    vec3 light_pos,
+	                    unsigned int* pixels) {
+	// use thread id as i, j
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
+
+	int i_stride = blockDim.x * gridDim.x;
+	int j_stride = blockDim.y * gridDim.y;
+	// iterate over the output image
+	/*for (int i = idx; i < cur_ppc._width; i += i_stride)
+		for (int j = jdx; j < cur_ppc._height; j += j_stride) {*/
+	
+	int total_pixel = cur_ppc._width * cur_ppc._height;
+	if (idx >= total_pixel) {
+		return;
+	}
+
+	for (int i = idx; i < total_pixel; i += i_stride) {
+		int u = i - i / cur_ppc._width * cur_ppc._width;
+		int v = cur_ppc._height - 1 - i / cur_ppc._width;
+        
+        if(pixels[i] == 0x00000000) {
+            continue;
+        }
+        
+		// compute the intersection point with the plane
+		ray cur_ray; cur_ppc.get_ray(u, v, cur_ray.ro, cur_ray.rd);
+		vec3 intersect_pos;
+		plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
+        
+		bool ret = false;
+		ray r = { intersect_pos, light_pos - intersect_pos };
+		ray_aabb_intersect(r, aabb, ret);
+
+		if (ret) {
+			ret = false;
+			for (int ti = jdx; ti < N / 3; ti += j_stride) {
+				vec3 p0 = world_verts[3 * ti + 0];
+				vec3 p1 = world_verts[3 * ti + 1];
+				vec3 p2 = world_verts[3 * ti + 2];
+
+				ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret) {
+					set_pixel(vec3(0.0f), pixels[i]);
+					break;
+				}
+			}
+		}
+	}
+}
+*/
+
 __global__
 void raster_hard_shadow(plane* grond_plane, 
 						glm::vec3* world_verts, 
@@ -332,10 +391,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			for (auto &light_pixel_pos : ibl_map) {
 				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
 				profiling.tic();
-/*
                 memset(&out_img.pixels[0], 0xffffffff, sizeof(unsigned int)*out_img.pixels.size());
                 gpuErrchk(cudaMemcpy(pixels, (unsigned int*)&out_img.pixels[0], out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
-*/
 				raster_hard_shadow<<<grid,block>>>(ground_plane, 
 					world_verts_cuda, 
 					world_verts.size(), 
