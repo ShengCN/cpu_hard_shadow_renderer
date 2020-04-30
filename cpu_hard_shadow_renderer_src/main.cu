@@ -70,13 +70,13 @@ struct plane {
 };
 
 __host__ __device__
-vec3 plane_ppc_intersect(const plane& plane, const ray& cur_ray) {
-	float t = glm::dot(plane.p - cur_ray.ro, plane.n) / glm::dot(cur_ray.rd, plane.n);
-	return cur_ray.ro + cur_ray.rd * t;
+void plane_ppc_intersect(plane* ground_plane, ray& cur_ray, glm::vec3& intersection_pos) {
+	 float t = glm::dot(ground_plane->p - cur_ray.ro, ground_plane->n) / glm::dot(cur_ray.rd, ground_plane->n);
+	 intersection_pos = cur_ray.ro + cur_ray.rd * t;
 }
 
 __host__ __device__
-bool ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2) {
+void ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
 	constexpr float kEpsilon = 1e-8;
 	vec3 v0v1 = p1 - p0;
 	vec3 v0v2 = p2 - p0;
@@ -84,19 +84,30 @@ bool ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2) {
 	float det = glm::dot(v0v1, pvec);
 	// if the determinant is negative the triangle is backfacing
 	// if the determinant is close to 0, the ray misses the triangle
-	if (det < kEpsilon) return false;
+	if (det < kEpsilon) {
+		ret = false;
+		return;
+	}
 	float invDet = 1 / det;
 	vec3 tvec = r.ro - p0;
 	float u = glm::dot(tvec, pvec) * invDet;
-	if (u < 0 || u > 1) return false;
+	if (u < 0 || u > 1) {
+		ret = false;
+		return;
+	}
 
 	vec3 qvec = glm::cross(tvec, v0v1);
 	float v = glm::dot(r.rd, qvec) * invDet;
-	if (v < 0 || u + v > 1) return false;
-	return true;
-
+	if (v < 0 || u + v > 1) {
+		ret = false;
+		return;
+	}
+	
+	ret = true;
+	return;
 }
 
+__host__ __device__
 void swap(float& a, float& b) {
 	float c = a;
 	a = b;
@@ -104,19 +115,21 @@ void swap(float& a, float& b) {
 }
 
 __host__ __device__
-bool ray_aabb_intersect(const ray&r, const AABB& aabb) {
-	float tmin = (aabb.p0.x - r.ro.x) / r.rd.x;
-	float tmax = (aabb.p1.x - r.ro.x) / r.rd.x;
+void ray_aabb_intersect(const ray&r, AABB* aabb, bool& ret) {
+	float tmin = (aabb->p0.x - r.ro.x) / r.rd.x;
+	float tmax = (aabb->p1.x - r.ro.x) / r.rd.x;
 
 	if (tmin > tmax) swap(tmin, tmax);
 
-	float tymin = (aabb.p0.y - r.ro.y) / r.rd.y;
-	float tymax = (aabb.p1.y - r.ro.y) / r.rd.y;
+	float tymin = (aabb->p0.y - r.ro.y) / r.rd.y;
+	float tymax = (aabb->p1.y - r.ro.y) / r.rd.y;
 
 	if (tymin > tymax) swap(tymin, tymax);
 
-	if ((tmin > tymax) || (tymin > tmax))
-		return false;
+	if ((tmin > tymax) || (tymin > tmax)) {
+		ret = false;
+		return;
+	}
 
 	if (tymin > tmin)
 		tmin = tymin;
@@ -124,46 +137,23 @@ bool ray_aabb_intersect(const ray&r, const AABB& aabb) {
 	if (tymax < tmax)
 		tmax = tymax;
 
-	float tzmin = (aabb.p0.z - r.ro.z) / r.rd.z;
-	float tzmax = (aabb.p1.z - r.ro.z) / r.rd.z;
+	float tzmin = (aabb->p0.z - r.ro.z) / r.rd.z;
+	float tzmax = (aabb->p1.z - r.ro.z) / r.rd.z;
 
 	if (tzmin > tzmax) swap(tzmin, tzmax);
 
-	if ((tmin > tzmax) || (tzmin > tmax))
-		return false;
-
-	if (tzmin > tmin)
-		tmin = tzmin;
-
-	if (tzmax < tmax)
-		tmax = tzmax;
-
-	return true;
-}
-
-__host__ __device__
-bool hit_light(vec3 p, glm::vec3* world_verts, int N, AABB& aabb, vec3 light_pos) {
-	ray r = { p, light_pos - p };
-
-	if (!ray_aabb_intersect(r, aabb))
-		return false;
-
-	return true;
-	
-	bool ret = false;
-	volatile bool flag = false;
-	for (int ti = 0; ti < N / 3; ++ti) {
-		if (flag) continue;
-		vec3 p0 = world_verts[3 * ti + 0];
-		vec3 p1 = world_verts[3 * ti + 1];
-		vec3 p2 = world_verts[3 * ti + 2];
-
-		if (ray_triangle_intersect(r, p0, p1, p2)) {
-			{flag = true; ret = true; }
-		}
+	if ((tmin > tzmax) || (tzmin > tmax)) {
+		ret = false;
+		return; 
 	}
 
-	return ret;
+	//if (tzmin > tmin)
+	//	tmin = tzmin;
+
+	//if (tzmax < tmax)
+	//	tmax = tzmax;
+
+	ret = true;
 }
 
 __host__ __device__
@@ -175,30 +165,59 @@ void set_pixel(vec3 c, unsigned int& p) {
 }
 
 __global__
-void raster_hard_shadow(const plane& grond_plane, 
+void raster_hard_shadow(plane* grond_plane, 
 						glm::vec3* world_verts, 
-	int N,
-	AABB aabb,
-	ppc cur_ppc,
-	vec3 light_pos,
-	unsigned int* pixels) {
+	                    int N,
+	                    AABB* aabb,
+	                    ppc cur_ppc,
+	                    vec3 light_pos,
+	                    unsigned int* pixels) {
+	// use thread id as i, j
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
+	int kdx = blockDim.z * blockIdx.z + threadIdx.z;
+	int gridx = gridDim.x;
+	int gridy = gridDim.y;
+	int blockz = blockDim.z;
 
-	printf("i: %d, j: %d", N, N);
+	int i_stride = blockDim.x * gridDim.x;
+	int j_stride = blockDim.y * gridDim.y;
+	long long k_stride = gridx * gridy * blockz;
+
+	printf("grid xy: %d %d, block xyz:  %d %d  %d \n", gridDim.x, gridDim.y, blockDim.x, blockDim.y, blockDim.z);
+	printf("i, j, k:  %d %d  %d \n", i_stride, j_stride, k_stride);
+
 
 	// iterate over the output image
-	for (int j = 0; j < cur_ppc._height; ++j) {
-		for (int i = 0; i < cur_ppc._width; ++i) {
+	for (int j = jdx; j < cur_ppc._height; j += j_stride) {
+		for (int i = idx; i < cur_ppc._width; i += i_stride) {
 			// compute the intersection point with the plane
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
-			vec3 intersect_pos = plane_ppc_intersect(grond_plane, cur_ray);
+			vec3 intersect_pos;
+			plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
 
-			vec3 pixel_value(1.0f);
-			// compute if it's hit by the light
-			if (hit_light(intersect_pos, world_verts, N, aabb, light_pos)) {
-				pixel_value = vec3(0.0f);
+			vec3 pixel_value = vec3(1.0f);
+			//// compute if it's hit by the light
+			//// hit_light(intersect_pos, world_verts, N, aabb, light_pos, ret);
+			//
+
+			bool ret = false;
+			ray r = { intersect_pos, light_pos - intersect_pos };
+			ray_aabb_intersect(r, aabb, ret);
+			if (ret) {
+				ret = false;
+				for (int ti = kdx; ti < N / 3; ti += k_stride) {
+					vec3 p0 = world_verts[3 * ti + 0];
+					vec3 p1 = world_verts[3 * ti + 1];
+					vec3 p2 = world_verts[3 * ti + 2];
+
+					ray_triangle_intersect(r, p0, p1, p2, ret);
+					if (ret) {
+						pixel_value = vec3(0.0f);
+						break;
+					}
+				}
 			}
-			pixel_value = vec3(0.0f);
-			printf("i: %d, j: %d", i, j);
 
 			set_pixel(pixel_value, pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i]);
 		}
@@ -268,11 +287,15 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 	int counter = 0;
 	int total_counter = target_rotation_num * camera_pitch_num * ibl_map.size();
+	timer profiling;
 
-	dim3 grid(256, 256);
-	dim3 block(256, 256, 256);
+	dim3 grid(8, 8);
+	dim3 block(8, 8, 1);
 	unsigned int* pixels;
+	plane* ground_plane;
 	gpuErrchk(cudaMallocManaged(&pixels, out_img.pixels.size() * sizeof(unsigned int)));
+	gpuErrchk(cudaMallocManaged(&ground_plane, sizeof(plane)));
+	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
 
 
 	for (int trni = 0; trni < target_rotation_num; ++trni) {
@@ -290,19 +313,29 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			auto world_verts = render_target->compute_world_space_coords();
 			AABB aabb = render_target->compute_world_aabb();
 			glm::vec3* world_verts_cuda;
+			AABB* aabb_cuda;
 			gpuErrchk(cudaMallocManaged(&world_verts_cuda, world_verts.size() * sizeof(glm::vec3)));
+			gpuErrchk(cudaMallocManaged(&aabb_cuda, sizeof(AABB)));
 			gpuErrchk(cudaMemcpy(world_verts_cuda, world_verts.data(), world_verts.size() * sizeof(vec3), cudaMemcpyHostToDevice));
+			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
 
 
 			for (auto &light_pixel_pos : ibl_map) {
 				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
+				profiling.tic();
 
-				raster_hard_shadow<<<grid,block>>>(cur_plane, world_verts_cuda, world_verts.size(), aabb, *cur_ppc, light_position, pixels);
+				raster_hard_shadow<<<grid,block>>>(ground_plane, 
+					world_verts_cuda, 
+					world_verts.size(), 
+					aabb_cuda, 
+					*cur_ppc, 
+					light_position, 
+					pixels);
 				gpuErrchk(cudaPeekAtLastError());
-				gpuErrchk(cudaDeviceSynchronize());
-
+				gpuErrchk(cudaDeviceSynchronize())
 				gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-
+				profiling.toc();
+				profiling.print_elapsed();
 
 				char buff[100];
 				snprintf(buff, sizeof(buff), "%07d", counter++);
@@ -328,12 +361,14 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				return;
 			}
 			cudaFree(world_verts_cuda);
+			cudaFree(aabb_cuda);
 		}
 
 		// set back rotation
 		render_target->m_world = old_mat;
 	}
 	cudaFree(pixels);
+	cudaFree(ground_plane);
 
 	std::ofstream output(output_folder + "/ground_truth.txt");
 	if (output.is_open()) {
