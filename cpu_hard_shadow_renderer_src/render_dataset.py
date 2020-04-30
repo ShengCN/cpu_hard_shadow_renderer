@@ -5,8 +5,8 @@ from tqdm import tqdm
 import argparse
 
 def worker(input_param):
-    model, output_folder = input_param
-    os.system('build/hard_shadow {} {}'.format(model, output_folder))
+    CUDA, model, output_folder = input_param
+    os.system('{} build/hard_shadow {} {}'.format(CUDA, model, output_folder))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -21,14 +21,19 @@ if __name__ == '__main__':
     
     cur_folder = os.path.abspath('.')
     output_list = []
-    for f in tqdm(model_files):
+    ds_root = '/home/ysheng/Dataset/new_dataset'
+    graphics_card = []
+    for i, f in tqdm(enumerate(model_files)):
+        card = i % 3;
+        graphics_card.append('CUDA_VISIBLE_DEVICES={}'.format(card))
+        
         model_fname = os.path.splitext(os.path.basename(f))[0]
-        out_folder = os.path.join(os.path.join(cur_folder, 'output'), model_fname)
-        os.makedirs(out_folder, exist_ok=True)
-        
+        # out_folder = os.path.join(os.path.join(cur_folder, 'output'), model_fname)
+        # os.makedirs(out_folder, exist_ok=True)
+        out_folder = os.path.join(ds_root, model_fname)
         output_list.append(out_folder)
-        
-    input_param = zip(model_files, output_list)
+    
+    input_param = zip(graphics_card, model_files, output_list)
     # processor_num = len(model_files)
     processor_num = args.proc
     total = len(model_files)
