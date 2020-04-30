@@ -9,9 +9,14 @@
 
 int w = 256, h = 256;
 using namespace purdue;
-int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+// int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
+int i_begin = 256 - 80;
 #define DBG
+int nx = 128, ny = 256;
+int tx = 16, ty = 32;
+int dev = 0;
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
 {
 	if (code != cudaSuccess)
@@ -79,7 +84,8 @@ void plane_ppc_intersect(plane* ground_plane, ray& cur_ray, glm::vec3& intersect
 
 __host__ __device__
 void ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
-	constexpr float kEpsilon = 1e-8f;
+
+	constexpr float kEpsilon = 1e-8;
 	vec3 v0v1 = p1 - p0;
 	vec3 v0v2 = p2 - p0;
 	vec3 pvec = glm::cross(r.rd, v0v2);
@@ -159,7 +165,7 @@ void ray_aabb_intersect(const ray&r, AABB* aabb, bool& ret) {
 }
 
 __host__ __device__
-void set_pixel(vec3& c, unsigned int& p) {
+void set_pixel(vec3 c, unsigned int& p) {
 	reinterpret_cast<unsigned char*>(&p)[0] = (unsigned char)(255.0 * c.x);
 	reinterpret_cast<unsigned char*>(&p)[1] = (unsigned char)(255.0 * c.y);
 	reinterpret_cast<unsigned char*>(&p)[2] = (unsigned char)(255.0 * c.z);
@@ -180,40 +186,49 @@ void raster_hard_shadow(plane* grond_plane,
 
 	int i_stride = blockDim.x * gridDim.x;
 	int j_stride = blockDim.y * gridDim.y;
-
 	// iterate over the output image
-//	for (int i = idx; i < cur_ppc._width; i += i_stride)
-//		for (int j = jdx; j < cur_ppc._height; j += j_stride) {
-for (int i = idx; i < cur_ppc._width; i += i_stride)
-		//// compute the intersection point with the plane
-		ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
+	/*for (int i = idx; i < cur_ppc._width; i += i_stride)
+		for (int j = jdx; j < cur_ppc._height; j += j_stride) {*/
+	
+	int total_pixel = cur_ppc._width * cur_ppc._height;
+	if (idx >= total_pixel) {
+		return;
+	}
+
+	for (int i = idx; i < total_pixel; i += i_stride) {
+		int u = i - i / cur_ppc._width * cur_ppc._width;
+		int v = cur_ppc._height - 1 - i / cur_ppc._width;
+        
+        if(pixels[i] == 0x00000000) {
+            continue;
+        }
+        
+		// compute the intersection point with the plane
+		ray cur_ray; cur_ppc.get_ray(u, v, cur_ray.ro, cur_ray.rd);
 		vec3 intersect_pos;
 		plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
-
+        
 		bool ret = false;
 		ray r = { intersect_pos, light_pos - intersect_pos };
 		ray_aabb_intersect(r, aabb, ret);
-		vec3 pixel_value = vec3(1.0f);
 
 		if (ret) {
 			ret = false;
-			for (int ti = 0; ti < N / 3; ti++) {
+			for (int ti = jdx; ti < N / 3; ti += j_stride) {
 				vec3 p0 = world_verts[3 * ti + 0];
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
 
 				ray_triangle_intersect(r, p0, p1, p2, ret);
 				if (ret) {
-					pixel_value = vec3(0.0f);
+					set_pixel(vec3(0.0f), pixels[i]);
 					break;
 				}
 			}
 		}
-
-		set_pixel(pixel_value, pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i]);
 	}
-
 }
+
 
 // given an ibl map and light center position
 // return the 3D light position
@@ -227,7 +242,7 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 
 void render_data(const std::string model_file, const std::string output_folder) {
 	std::shared_ptr<mesh> render_target;
-
+    
 	// load render target
 	if (load_mesh(model_file, render_target)) {
 		std::cerr << "Loading success \n";
@@ -235,7 +250,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	else {
 		std::cerr << "Loading failed \n";
 	}
-
+    
+    cudaSetDevice(dev);
 	// normalize and compute ground plane
 	render_target->normalize_position_orientation();
 	AABB world_aabb = render_target->compute_world_aabb();
@@ -259,13 +275,13 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	purdue::create_folder(output_folder);
 	image out_img(w, h);
 
-#if define DBG
+// #if define DBG
 	int camera_pitch_num = 1;
 	int target_rotation_num = 1;
-#else
-	int camera_pitch_num = 3;
-	int target_rotation_num = 6;
-#endif 
+// #else
+//	int camera_pitch_num = 3;
+//	int target_rotation_num = 6;
+// #endif 
 
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
@@ -281,8 +297,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 	int counter = 0;
 	int total_counter = target_rotation_num * camera_pitch_num * (int)ibl_map.size();
-	int nx = 256, ny = 256;
-	int tx = 32, ty = 32;
+
 	dim3 grid(nx/tx, ny/ty);
 	dim3 block(tx, ty);
 	unsigned int* pixels;
@@ -291,7 +306,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMallocManaged(&ground_plane, sizeof(plane)));
 	gpuErrchk(cudaMemcpy(pixels, out_img.pixels.data(), out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
-
+    timer profiling;
 
 	for (int trni = 0; trni < target_rotation_num; ++trni) {
 		float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
@@ -314,10 +329,13 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			gpuErrchk(cudaMemcpy(world_verts_cuda, world_verts.data(), world_verts.size() * sizeof(vec3), cudaMemcpyHostToDevice));
 			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
 
-
 			for (auto &light_pixel_pos : ibl_map) {
 				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
-
+				profiling.tic();
+/*
+                memset(&out_img.pixels[0], 0xffffffff, sizeof(unsigned int)*out_img.pixels.size());
+                gpuErrchk(cudaMemcpy(pixels, (unsigned int*)&out_img.pixels[0], out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
+*/
 				raster_hard_shadow<<<grid,block>>>(ground_plane, 
 					world_verts_cuda, 
 					world_verts.size(), 
@@ -328,6 +346,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				gpuErrchk(cudaPeekAtLastError());
 				gpuErrchk(cudaDeviceSynchronize())
 				gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+				profiling.toc();
+				// profiling.print_elapsed();
 
 				char buff[100];
 				snprintf(buff, sizeof(buff), "%07d", counter++);
@@ -346,7 +366,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				out_img.save(output_fname);
 
 				std::cerr << "Finish: " << (float)counter / total_counter * 100.0f << "% \r";
-			}
+                // return;
+        }
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
 		}
@@ -363,13 +384,17 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			output << s;
 		}
 	}
+
+    t.toc();
+	t.print_elapsed();
 	std::string total_time = t.to_string();
 	output << total_time << std::endl;
 	output.close();
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 3) {
+    std::cout << "There are " << argc << " params" << std::endl;
+	if (argc != 3 && argc != 8) {
 		std::cerr << "Please check your input! \n";
 		std::cerr << "Should be xx model_path out_folder \n";
 		return 0;
@@ -381,9 +406,19 @@ int main(int argc, char *argv[]) {
 
 	std::string model_file = argv[1];
 	std::string output_folder = argv[2];
-
+    
+    if(argc == 8) {
+        nx = std::stoi(argv[3]);
+        ny = std::stoi(argv[4]);
+        tx = std::stoi(argv[5]);
+        ty = std::stoi(argv[6]);
+        dev = std::stoi(argv[7]);
+    }
+    
+    printf("gridx: %d, gridy: %d, blockx: %d, blocky: %d", nx, ny, tx, ty);
 	render_data(model_file, output_folder);
-	
+
 	printf("finished \n");
+
 	return 0;
 }
