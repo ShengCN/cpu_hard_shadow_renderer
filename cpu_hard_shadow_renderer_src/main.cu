@@ -12,9 +12,11 @@ using namespace purdue;
 // int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
 int i_begin = 256 - 80;
 #define DBG
-int nx = 128, ny = 256;
-int tx = 16, ty = 32;
+int nx = 256, ny = 256;
+int tx = 32, ty = 32;
 int dev = 0;
+bool resume = false;
+bool camera_change = false;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -172,7 +174,6 @@ void set_pixel(vec3 c, unsigned int& p) {
 	reinterpret_cast<unsigned char*>(&p)[3] = (unsigned char)(255);
 }
 
-/*
 __global__
 void raster_hard_shadow(plane* grond_plane, 
 						glm::vec3* world_verts, 
@@ -184,106 +185,44 @@ void raster_hard_shadow(plane* grond_plane,
 	// use thread id as i, j
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
+	int gridx = gridDim.x;
+	int gridy = gridDim.y;
 
 	int i_stride = blockDim.x * gridDim.x;
 	int j_stride = blockDim.y * gridDim.y;
+
 	// iterate over the output image
-	/*for (int i = idx; i < cur_ppc._width; i += i_stride)
-		for (int j = jdx; j < cur_ppc._height; j += j_stride) {*/
-	
-	int total_pixel = cur_ppc._width * cur_ppc._height;
-	if (idx >= total_pixel) {
-		return;
-	}
+	for (int j = jdx; j < cur_ppc._height; j += j_stride) {
+		for (int i = idx; i < cur_ppc._width; i += i_stride) {
+			// compute the intersection point with the plane
+			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
+			vec3 intersect_pos;
+			plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
 
-	for (int i = idx; i < total_pixel; i += i_stride) {
-		int u = i - i / cur_ppc._width * cur_ppc._width;
-		int v = cur_ppc._height - 1 - i / cur_ppc._width;
-        
-        if(pixels[i] == 0x00000000) {
-            continue;
-        }
-        
-		// compute the intersection point with the plane
-		ray cur_ray; cur_ppc.get_ray(u, v, cur_ray.ro, cur_ray.rd);
-		vec3 intersect_pos;
-		plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
-        
-		bool ret = false;
-		ray r = { intersect_pos, light_pos - intersect_pos };
-		ray_aabb_intersect(r, aabb, ret);
+			vec3 pixel_value = vec3(1.0f);
+			//// compute if it's hit by the light
+			//// hit_light(intersect_pos, world_verts, N, aabb, light_pos, ret);
+			//
 
-		if (ret) {
-			ret = false;
-			for (int ti = jdx; ti < N / 3; ti += j_stride) {
-				vec3 p0 = world_verts[3 * ti + 0];
-				vec3 p1 = world_verts[3 * ti + 1];
-				vec3 p2 = world_verts[3 * ti + 2];
+			bool ret = false;
+			ray r = { intersect_pos, light_pos - intersect_pos };
+			ray_aabb_intersect(r, aabb, ret);
+			if (ret) {
+				ret = false;
+				for (int ti = 0; ti < N / 3; ++ti) {
+					vec3 p0 = world_verts[3 * ti + 0];
+					vec3 p1 = world_verts[3 * ti + 1];
+					vec3 p2 = world_verts[3 * ti + 2];
 
-				ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
-					set_pixel(vec3(0.0f), pixels[i]);
-					break;
+					ray_triangle_intersect(r, p0, p1, p2, ret);
+					if (ret) {
+						pixel_value = vec3(0.0f);
+						break;
+					}
 				}
 			}
-		}
-	}
-}
-*/
 
-__global__
-void raster_hard_shadow(plane* grond_plane, 
-						glm::vec3* world_verts, 
-	                    int N,
-	                    AABB* aabb,
-	                    ppc cur_ppc,
-	                    vec3 light_pos,
-	                    unsigned int* pixels) {
-	// use thread id as i, j
-	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
-
-	int i_stride = blockDim.x * gridDim.x;
-	int j_stride = blockDim.y * gridDim.y;
-	// iterate over the output image
-	/*for (int i = idx; i < cur_ppc._width; i += i_stride)
-		for (int j = jdx; j < cur_ppc._height; j += j_stride) {*/
-	
-	int total_pixel = cur_ppc._width * cur_ppc._height;
-	if (idx >= total_pixel) {
-		return;
-	}
-
-	for (int i = idx; i < total_pixel; i += i_stride) {
-		int u = i - i / cur_ppc._width * cur_ppc._width;
-		int v = cur_ppc._height - 1 - i / cur_ppc._width;
-        
-        if(pixels[i] == 0x00000000) {
-            continue;
-        }
-        
-		// compute the intersection point with the plane
-		ray cur_ray; cur_ppc.get_ray(u, v, cur_ray.ro, cur_ray.rd);
-		vec3 intersect_pos;
-		plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
-        
-		bool ret = false;
-		ray r = { intersect_pos, light_pos - intersect_pos };
-		ray_aabb_intersect(r, aabb, ret);
-
-		if (ret) {
-			ret = false;
-			for (int ti = jdx; ti < N / 3; ti += j_stride) {
-				vec3 p0 = world_verts[3 * ti + 0];
-				vec3 p1 = world_verts[3 * ti + 1];
-				vec3 p2 = world_verts[3 * ti + 2];
-
-				ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
-					set_pixel(vec3(0.0f), pixels[i]);
-					break;
-				}
-			}
+			set_pixel(pixel_value, pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i]);
 		}
 	}
 }
@@ -334,13 +273,11 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	purdue::create_folder(output_folder);
 	image out_img(w, h);
 
-// #if define DBG
 	int camera_pitch_num = 1;
-	int target_rotation_num = 1;
-// #else
-//	int camera_pitch_num = 3;
-//	int target_rotation_num = 6;
-// #endif 
+    if(camera_change) {
+        camera_pitch_num = 3;
+    }
+	int target_rotation_num = 4;
 
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
@@ -350,7 +287,9 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	float light_relative_length = 11.0f;
 	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size) * 2.0f;
 	std::vector<std::string> gt_str;
-
+	float delta_camera_pitch = 30.0 / camera_pitch_num;
+	float delta_target_rot = 360.0 / target_rotation_num;
+    
 	timer t;
 	t.tic();
 
@@ -389,10 +328,19 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
 
 			for (auto &light_pixel_pos : ibl_map) {
+            	char buff[100];
+				snprintf(buff, sizeof(buff), "%07d", counter++);
+				std::string cur_prefix = buff;
+				std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
+                if(resume) {
+                    if(exists_test(output_fname)) {
+                        std::cout << "File " << output_fname << "exist, skip this render \n"; 
+                        continue;
+                    }
+                }
+                
 				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
 				profiling.tic();
-                memset(&out_img.pixels[0], 0xffffffff, sizeof(unsigned int)*out_img.pixels.size());
-                gpuErrchk(cudaMemcpy(pixels, (unsigned int*)&out_img.pixels[0], out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
 				raster_hard_shadow<<<grid,block>>>(ground_plane, 
 					world_verts_cuda, 
 					world_verts.size(), 
@@ -406,10 +354,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				profiling.toc();
 				// profiling.print_elapsed();
 
-				char buff[100];
-				snprintf(buff, sizeof(buff), "%07d", counter++);
-				std::string cur_prefix = buff;
-
 				std::ostringstream oss;
 				oss << cur_prefix << ",";
 				oss << light_pixel_pos.to_string() << ",";
@@ -419,7 +363,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				oss << to_string(light_position) << std::endl;
 				gt_str.push_back(oss.str());
 
-				std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
 				out_img.save(output_fname);
 
 				std::cerr << "Finish: " << (float)counter / total_counter * 100.0f << "% \r";
@@ -451,7 +394,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 int main(int argc, char *argv[]) {
     std::cout << "There are " << argc << " params" << std::endl;
-	if (argc != 3 && argc != 8) {
+	if (argc != 3 && argc != 8 && argc != 6) {
 		std::cerr << "Please check your input! \n";
 		std::cerr << "Should be xx model_path out_folder \n";
 		return 0;
@@ -463,6 +406,7 @@ int main(int argc, char *argv[]) {
 
 	std::string model_file = argv[1];
 	std::string output_folder = argv[2];
+    create_folder(output_folder);
     
     if(argc == 8) {
         nx = std::stoi(argv[3]);
@@ -470,6 +414,12 @@ int main(int argc, char *argv[]) {
         tx = std::stoi(argv[5]);
         ty = std::stoi(argv[6]);
         dev = std::stoi(argv[7]);
+    }
+    
+    if (argc == 6) {
+        dev = std::stoi(argv[3]);
+        if(std::stoi(argv[4])) resume = true;
+        if(std::stoi(argv[5])) camera_change = true;
     }
     
     printf("gridx: %d, gridy: %d, blockx: %d, blocky: %d", nx, ny, tx, ty);

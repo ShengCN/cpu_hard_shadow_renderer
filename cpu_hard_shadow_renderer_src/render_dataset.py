@@ -3,11 +3,11 @@ import multiprocessing
 from functools import partial
 from tqdm import tqdm
 import argparse
+import time
 
 def worker(input_param):
-    CUDA, model, output_folder = input_param
-    os.system('{} build/hard_shadow {} {}'.format(CUDA, model, output_folder))
-
+    model, output_folder, gpu, resume, camera_change = input_param
+    os.system('build/hard_shadow {} {} {} {} {}'.format(model, output_folder, gpu, resume, camera_change))
     
 def base_compute(param):
     x, y, shadow_list = param
@@ -92,41 +92,37 @@ def multithreading_post_process(folder, output_folder, base_size=16):
         np.save(output_path, group_np)
         del group_np
 
-        
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('proc', default=1,type=int, help='how many processing')
-    args = parser.parse_args()
-
-    print('{} processing is using'.format(args.proc))
-
-    model_folder = '../models/'
-    model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
-    print('There are {} model files'.format(len(model_files)))
-    
+def render(args, camera_change=False):
     cur_folder = os.path.abspath('.')
     output_list,base_output_list = [], []
-    ds_root = './output'
-    base_ds_root = './base/'
-    os.makedirs(ds_root, exist_ok=True)
-    graphics_card = []
-    for i, f in tqdm(enumerate(model_files)):
-        card = 0;
-        graphics_card.append('CUDA_VISIBLE_DEVICES={}'.format(card))
+    if camera_change:
+        ds_root = './output2'
+        base_ds_root = './base2/'
+    else:
+        ds_root = './output1'
+        base_ds_root = './base1/'
         
+    os.makedirs(ds_root, exist_ok=True)
+    graphics_card = [args.gpu] * len(model_files)
+    resume_list = [int(args.resume)] * len(model_files) 
+    
+    if camera_change:
+        camera_change_list = [1] * len(model_files)
+    else:
+        camera_change_list = [0] * len(model_files)
+        
+    for i, f in tqdm(enumerate(model_files)):        
         model_fname = os.path.splitext(os.path.basename(f))[0]
-        # out_folder = os.path.join(os.path.join(cur_folder, 'output'), model_fname)
-        # os.makedirs(out_folder, exist_ok=True)
         out_folder = os.path.join(ds_root, model_fname)
         output_list.append(out_folder)
         
         base_output_folder = os.path.join(base_ds_root, model_fname)
         base_output_list.append(base_output_folder)
     
-    input_param = zip(graphics_card, model_files, output_list)
-    # processor_num = len(model_files)
-    processor_num = args.proc
+    input_param = zip(model_files, output_list, graphics_card, resume_list, camera_change_list)
     total = len(model_files)
+    
+    processor_num = 1
     with multiprocessing.Pool(processor_num) as pool:
         for i,_ in enumerate(pool.imap_unordered(worker, input_param), 1):
             print('Finished: {} \r'.format(float(i)/total), flush=True, end='')
@@ -135,6 +131,34 @@ if __name__ == '__main__':
     for i, shadow_output_folder in tqdm(enumerate(output_list)):
         multithreading_post_process(shadow_output_folder, base_output_folder[i])
         
-    print('Dataset generation finished')
-    print('Bases are in folder ./base')
+    print('Bases render finish, check folder ./base')
+    
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('--gpu', default=0, type=int, help='GPU device')
+    parser.add_argument('--start_id', default=0, type=int, help='Start file id, range [0, 65]')
+    parser.add_argument('--end_id', default=66, type=int, help='End file id, range [0, 65]')
+    parser.add_argument("--resume", help="skip the rendered image", action="store_true")
+    
+    args = parser.parse_args()
+
+    print('parameters: {}'.format(args))
+
+    model_folder = '../models/'
+    model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
+    print('There are {} model files'.format(len(model_files)))
+    model_files.sort()
+    
+    model_files = model_files[args.start_id : args.end_id+1]
+    
+    print('Will render {} files'.format(len(model_files)))
+    begin = time.time()
+    render(args, False)
+    elapsed = time.time() - begin
+    print("Render no camera change took: {} s".format(elapsed))
+    
+    begin = time.time()
+    render(args, True) 
+    elapsed = time.time() - begin
+    print("Render camera change took: {} s".format(elapsed))
     

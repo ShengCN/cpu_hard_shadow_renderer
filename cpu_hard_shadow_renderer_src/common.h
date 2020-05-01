@@ -10,6 +10,7 @@
 #include <random>
 #include <sstream>
 #include <iostream>
+#include <unistd.h>
 
 typedef std::chrono::high_resolution_clock Clock;
 
@@ -207,4 +208,8 @@ namespace purdue {
 		std::string command = "mkdir " + folder;
 		system(command.c_str());
 	}
+    
+    inline bool exists_test (const std::string& name) {
+    return ( access( name.c_str(), F_OK ) != -1 );
+    }
 }
