@@ -8,9 +8,15 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 
+def get_newest_prefix(out_folder):
+    files = [f for f in os.listdir(out_folder) if (os.path.isfile(os.path.join(out_folder, f))) and (f.find('_shadow')!=-1)]
+    return len(files) - 1
+
 def worker(input_param):
     model, output_folder, gpu, resume, camera_change = input_param
-    os.system('build/hard_shadow {} {} {} {} {}'.format(model, output_folder, gpu, resume, camera_change))
+    
+    newest_prefix = get_newest_prefix(output_folder)
+    os.system('build/hard_shadow {} {} {} {} {} {}'.format(model, output_folder, gpu, resume, camera_change, newest_prefix))
     
 def base_compute(param):
     x, y, shadow_list = param
@@ -93,11 +99,11 @@ def multithreading_post_process(folder, output_folder, base_size=16):
         output_path = os.path.join(output_folder, '{:03d}_shadow.npy'.format(key_id))
         np.save(output_path, group_np)
         del group_np
-
+        
 def render(args, model_files, camera_change=False):
     cur_folder = os.path.abspath('.')
     output_list,base_output_list = [], []
-    ds_root = './output'
+    ds_root = './output1'
     if camera_change:
         base_ds_root = './base2/'
     else:

@@ -16,6 +16,7 @@ int tx = 32, ty = 32;
 int dev = 0;
 bool resume = false;
 bool camera_change = false;
+int last_counter = -1;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -237,6 +238,23 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 	return vec3(cos(deg2rad(beta)) * cos(deg2rad(alpha)), sin(deg2rad(beta)), cos(deg2rad(beta)) * sin(deg2rad(alpha)));
 }
 
+bool skip_scene(const std::string& output_folder, int prefix_counter) {
+    // skip test 
+    if(resume) {
+        char buff[100];
+        snprintf(buff, sizeof(buff), "%07d", prefix_counter);
+        std::string cur_prefix = buff;
+        std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
+        std::cout << output_fname << " testing \n";
+        if(exists_test(output_fname)) {
+            std::cout << prefix_counter << "is skipped \n";
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 void render_data(const std::string model_file, const std::string output_folder) {
 	std::shared_ptr<mesh> render_target;
     
@@ -305,7 +323,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMemcpy(pixels, out_img.pixels.data(), out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
     timer profiling;
-
+    
     for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
         float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
         // set camera rotation
@@ -344,12 +362,17 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				oss << to_string(light_position) << std::endl;
 				gt_str.push_back(oss.str());
                 
+                if(counter - 1 <= last_counter) {
+                    continue;
+                } 
+                
+                /**
                 if(resume) {
                     if(exists_test(output_fname)) {
                         std::cout << "File " << output_fname << "exist, skip this render \r"; 
                         continue;
                     }
-                }
+                }**/
                 
 				profiling.tic();
 				raster_hard_shadow<<<grid,block>>>(ground_plane, 
@@ -395,7 +418,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 int main(int argc, char *argv[]) {
     std::cout << "There are " << argc << " params" << std::endl;
-	if (argc != 3 && argc != 8 && argc != 6) {
+	if (argc != 3 && argc != 8 && argc != 7) {
 		std::cerr << "Please check your input! \n";
 		std::cerr << "Should be xx model_path out_folder \n";
 		return 0;
@@ -417,14 +440,16 @@ int main(int argc, char *argv[]) {
         dev = std::stoi(argv[7]);
     }
     
-    if (argc == 6) {
+    if (argc == 7) {
         dev = std::stoi(argv[3]);
         if(std::stoi(argv[4])) resume = true;
         if(std::stoi(argv[5])) camera_change = true;
+        last_counter = std::stoi(argv[6]);
     }
     
     printf("gridx: %d, gridy: %d, blockx: %d, blocky: %d", nx, ny, tx, ty);
-	render_data(model_file, output_folder);
+	printf("resume from %d", last_counter);
+    render_data(model_file, output_folder);
 
 	printf("finished \n");
 

@@ -1,0 +1,1 @@
+nvprof ./hard_shadow ../..//models/simulated_combine_female_long_fullbody_bridget8_wildwind_ssradclosedrobe_Base_Pose_Standing_A.obj ./output/simulated_combine_female_long_fullbody_bridget8_wildwind_ssradclosedrobe_Base_Pose_Standing_A 128 256 16 32 1
