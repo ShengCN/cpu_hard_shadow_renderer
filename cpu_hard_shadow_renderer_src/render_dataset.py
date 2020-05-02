@@ -14,6 +14,7 @@ def get_newest_prefix(out_folder):
 
 def worker(input_param):
     model, output_folder, gpu, resume, camera_change = input_param
+    os.makedirs(output_folder, exist_ok=True)
     
     newest_prefix = get_newest_prefix(output_folder)
     os.system('build/hard_shadow {} {} {} {} {} {}'.format(model, output_folder, gpu, resume, camera_change, newest_prefix))
