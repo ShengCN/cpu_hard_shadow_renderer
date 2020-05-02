@@ -4,6 +4,9 @@ from functools import partial
 from tqdm import tqdm
 import argparse
 import time
+import csv
+import numpy as np
+import matplotlib.pyplot as plt
 
 def worker(input_param):
     model, output_folder, gpu, resume, camera_change = input_param
@@ -19,7 +22,6 @@ def base_compute(param):
 
 def multithreading_post_process(folder, output_folder, base_size=16):
     path = folder
-    # output_folder = os.path.join(path, 'base')
     os.makedirs(output_folder, exist_ok=True)
     gt_file = os.path.join(path, 'ground_truth.txt')
     lines = []
@@ -32,7 +34,7 @@ def multithreading_post_process(folder, output_folder, base_size=16):
     print('there are {} lines'.format(len(lines)))
 
     group_data = {}
-#     import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     ibl_y_pos = []
     for l in tqdm(lines):
         if len(l) != 13:
@@ -92,17 +94,17 @@ def multithreading_post_process(folder, output_folder, base_size=16):
         np.save(output_path, group_np)
         del group_np
 
-def render(args, camera_change=False):
+def render(args, model_files, camera_change=False):
     cur_folder = os.path.abspath('.')
     output_list,base_output_list = [], []
+    ds_root = './output'
     if camera_change:
-        ds_root = './output2'
         base_ds_root = './base2/'
     else:
-        ds_root = './output1'
         base_ds_root = './base1/'
         
     os.makedirs(ds_root, exist_ok=True)
+    os.makedirs(base_ds_root, exist_ok=True)
     graphics_card = [args.gpu] * len(model_files)
     resume_list = [int(args.resume)] * len(model_files) 
     
@@ -129,9 +131,10 @@ def render(args, camera_change=False):
     
     print('begin preparing bases')
     for i, shadow_output_folder in tqdm(enumerate(output_list)):
-        multithreading_post_process(shadow_output_folder, base_output_folder[i])
+        print('shadow output: {}, base output: {}'.format(shadow_output_folder, base_output_list[i]))
+        multithreading_post_process(shadow_output_folder, base_output_list[i])
         
-    print('Bases render finish, check folder ./base')
+    print('Bases render finish, check folder {}'.format(base_ds_root))
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -153,12 +156,12 @@ if __name__ == '__main__':
     
     print('Will render {} files'.format(len(model_files)))
     begin = time.time()
-    render(args, False)
+    render(args, model_files, False)
     elapsed = time.time() - begin
     print("Render no camera change took: {} s".format(elapsed))
     
     begin = time.time()
-    render(args, True) 
+    render(args, model_files, True) 
     elapsed = time.time() - begin
     print("Render camera change took: {} s".format(elapsed))
     

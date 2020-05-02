@@ -11,7 +11,6 @@ int w = 256, h = 256;
 using namespace purdue;
 // int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
 int i_begin = 256 - 80;
-#define DBG
 int nx = 256, ny = 256;
 int tx = 32, ty = 32;
 int dev = 0;
@@ -277,7 +276,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
     if(camera_change) {
         camera_pitch_num = 3;
     }
-	int target_rotation_num = 4;
+	// int target_rotation_num = 4;
+	int target_rotation_num = 1;
 
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
@@ -306,17 +306,17 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
     timer profiling;
 
-	for (int trni = 0; trni < target_rotation_num; ++trni) {
-		float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
-		// set rotation
-		render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
-
-		for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
-			float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
-			// set camera rotation
-			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
-				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
-				vec3(0.0, 1.0, 0.0));
+    for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
+        float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
+        // set camera rotation
+        cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
+            render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
+            vec3(0.0, 1.0, 0.0));
+                
+        for (int trni = 0; trni < target_rotation_num; ++trni) {
+            float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
+            // set rotation
+            render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
 
 			auto world_verts = render_target->compute_world_space_coords();
 			AABB aabb = render_target->compute_world_aabb();
@@ -328,18 +328,29 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
 
 			for (auto &light_pixel_pos : ibl_map) {
-            	char buff[100];
+                vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
+                                
+                char buff[100];
 				snprintf(buff, sizeof(buff), "%07d", counter++);
 				std::string cur_prefix = buff;
 				std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
+                
+                std::ostringstream oss;
+				oss << cur_prefix << ",";
+				oss << light_pixel_pos.to_string() << ",";
+				oss << to_string(cur_ppc->_position) << ",";
+				oss << target_rot << ",";
+				oss << to_string(render_target_center) << ",";
+				oss << to_string(light_position) << std::endl;
+				gt_str.push_back(oss.str());
+                
                 if(resume) {
                     if(exists_test(output_fname)) {
-                        std::cout << "File " << output_fname << "exist, skip this render \n"; 
+                        std::cout << "File " << output_fname << "exist, skip this render \r"; 
                         continue;
                     }
                 }
                 
-				vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
 				profiling.tic();
 				raster_hard_shadow<<<grid,block>>>(ground_plane, 
 					world_verts_cuda, 
@@ -352,17 +363,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				gpuErrchk(cudaDeviceSynchronize())
 				gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 				profiling.toc();
-				// profiling.print_elapsed();
-
-				std::ostringstream oss;
-				oss << cur_prefix << ",";
-				oss << light_pixel_pos.to_string() << ",";
-				oss << to_string(cur_ppc->_position) << ",";
-				oss << target_rot << ",";
-				oss << to_string(render_target_center) << ",";
-				oss << to_string(light_position) << std::endl;
-				gt_str.push_back(oss.str());
-
+                
 				out_img.save(output_fname);
 
 				std::cerr << "Finish: " << (float)counter / total_counter * 100.0f << "% \r";
@@ -370,10 +371,10 @@ void render_data(const std::string model_file, const std::string output_folder) 
         }
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
+            
+            // set back rotation
+            render_target->m_world = old_mat;
 		}
-
-		// set back rotation
-		render_target->m_world = old_mat;
 	}
 	cudaFree(pixels);
 	cudaFree(ground_plane);
@@ -388,7 +389,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
     t.toc();
 	t.print_elapsed();
 	std::string total_time = t.to_string();
-	output << total_time << std::endl;
+	std::cout << total_time << std::endl;
 	output.close();
 }
 
