@@ -340,14 +340,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 	// rasterize the 256x256 image to compute hard shadow
 	purdue::create_folder(output_folder);
-
-	int camera_pitch_num = 1;
-    if(camera_change) {
-        camera_pitch_num = 3;
-    }
-	int target_rotation_num = 4;
-	// int target_rotation_num = 1;
-
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
 
@@ -361,8 +353,9 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	t.tic();
 
 	int counter = 0;
-	int total_counter = target_rotation_num * camera_pitch_num * (int)ibl_map.size() /patch_size / patch_size;
-    int total_pixel = w * h;
+	int total_counter = cam_pitch.size() * model_rot.size() * (256-80+1) / patch_size * (513) / patch_size;
+	std::cout << "total: " << total_counter << std::endl;
+	int total_pixel = w * h;
 	
 	image out_img(w,h);
 	dim3 grid(nx/tx, ny/ty);

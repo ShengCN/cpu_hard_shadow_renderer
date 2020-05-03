@@ -1,1 +1,0 @@
-nvprof ./hard_shadow ../..//models/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj ./output 128 256 16 32 1
