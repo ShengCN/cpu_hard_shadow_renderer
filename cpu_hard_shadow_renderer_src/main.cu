@@ -1,7 +1,9 @@
 #include <iostream>
 #include <glm/mat3x3.hpp>
 #include <glm/gtx/transform.hpp>
+#include <vector>
 
+#include "cxxopts.hpp"
 #include "common.h"
 #include "mesh.h"
 #include "model_loader.h"
@@ -12,12 +14,12 @@ using namespace purdue;
 // int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
 int i_begin = 256 - 80;
 int nx = 256, ny = 256;
-int tx = 32, ty = 32;
+int tx = 8, ty = 64;
 int dev = 0;
 bool resume = false;
 bool camera_change = false;
-int last_counter = -1;
 const int patch_size = 8;
+std::vector<float> cam_pitch, model_rot;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -30,7 +32,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort =
 }
 
 struct pixel_pos {
-	float x, y;
+	int x, y;
 
 	std::string to_string() {
 		std::ostringstream oss;
@@ -250,39 +252,47 @@ void raster_hard_shadow(plane* grond_plane,
 	int j_stride = blockDim.y * gridDim.y;
 
 	// iterate over the output image
-	for (int j = jdx; j < cur_ppc._height; j += j_stride) {
-		for (int i = idx; i < cur_ppc._width; i += i_stride) {
+	// for (int j = jdx; j < cur_ppc._height; j += j_stride) {
+	// 	for (int i = idx; i < cur_ppc._width; i += i_stride) {
+		for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) {
+			int i = ind - ind/cur_ppc._width * cur_ppc._width;
+			int j = h-1-(ind-i)/cur_ppc._width;
+
 			// compute the intersection point with the plane
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
 			vec3 intersect_pos;
 			plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
 
-			vec3 pixel_value = vec3(0.0f);
+			// vec3 pixel_value = vec3(0.0f);
 			//// compute if it's hit by the light
 			//// hit_light(intersect_pos, world_verts, N, aabb, light_pos, ret);
-
+			
+			if(pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i].x > 0.5f) {
+				continue;
+			}
+			
 			bool ret = false;
 			ray r = { intersect_pos, light_pos - intersect_pos };
 			ray_aabb_intersect(r, aabb, ret);
 			if (ret) {
 				ret = false;
-				for (int ti = 0; ti < N / 3; ++ti) {
+				for (int ti = jdx; ti < N / 6; ti += j_stride) {
 					vec3 p0 = world_verts[3 * ti + 0];
 					vec3 p1 = world_verts[3 * ti + 1];
 					vec3 p2 = world_verts[3 * ti + 2];
-
+					
 					ray_triangle_intersect(r, p0, p1, p2, ret);
 					if (ret) {
-						pixel_value = vec3(1.0f);
+						pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = vec3(1.0f);
 						break;
 					}
 				}
 			}
 
 			// set_pixel(pixel_value, pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i]);
-			pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = pixel_value;
+			// pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = pixel_value;
 		}
-	}
+	// }
 }
 
 
@@ -295,23 +305,6 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 	deg alpha, beta;
 	alpha = x_fract * 360.0f - 90.0f; beta = y_fract * 180.0f - 90.0f;
 	return vec3(cos(deg2rad(beta)) * cos(deg2rad(alpha)), sin(deg2rad(beta)), cos(deg2rad(beta)) * sin(deg2rad(alpha)));
-}
-
-bool skip_scene(const std::string& output_folder, int prefix_counter) {
-    // skip test 
-    if(resume) {
-        char buff[100];
-        snprintf(buff, sizeof(buff), "%07d", prefix_counter);
-        std::string cur_prefix = buff;
-        std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
-        std::cout << output_fname << " testing \n";
-        if(exists_test(output_fname)) {
-            std::cout << prefix_counter << "is skipped \n";
-            return true;
-        }
-    }
-    
-    return false;
 }
 
 void render_data(const std::string model_file, const std::string output_folder) {
@@ -352,8 +345,8 @@ void render_data(const std::string model_file, const std::string output_folder) 
     if(camera_change) {
         camera_pitch_num = 3;
     }
-	// int target_rotation_num = 4;
-	int target_rotation_num = 1;
+	int target_rotation_num = 4;
+	// int target_rotation_num = 1;
 
 	mat4 old_mat = render_target->m_world;
 	ppc  old_ppc = *cur_ppc;
@@ -384,15 +377,18 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
 
     timer profiling;
-    for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
-        float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
-        // set camera rotation
+    // for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
+	for (const auto& camera_pitch:cam_pitch) {
+        // float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
+		
+		// set camera rotation
         cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
             render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
             vec3(0.0, 1.0, 0.0));
                 
-        for (int trni = 0; trni < target_rotation_num; ++trni) {
-            float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
+       //  for (int trni = 0; trni < target_rotation_num; ++trni) {
+		for(const auto& target_rot:model_rot) {
+            // float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
             // set rotation
             render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
 
@@ -408,37 +404,34 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			// for (auto &light_pixel_pos : ibl_map) {
             // 8x8 patch rendering 
             // [0:512]x[i_begin:256] -> [0:128] x [i_begin/8:64]
-            for(int ibl_i = 0; ibl_i < 512/patch_size; ++ibl_i) {
-				for(int ibl_j = i_begin/patch_size; ibl_j < 256/patch_size; ++ibl_j) {
+            for(int ibl_i = 0; ibl_i <= 512/patch_size; ++ibl_i) {
+				for(int ibl_j = i_begin/patch_size; ibl_j <= 256/patch_size; ++ibl_j) {
 					pixel_pos begin_pixel_pos = {ibl_i * patch_size, ibl_j * patch_size};
-
 					vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * light_relative_length + render_target_center;
 
 					char buff[100];
-					snprintf(buff, sizeof(buff), "%07d", counter++);
+					snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
 					std::string cur_prefix = buff;
 					std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
-
-					std::ostringstream oss;
-					oss << cur_prefix << ",";
-					oss << begin_pixel_pos.to_string() << ",";
-					oss << to_string(cur_ppc->_position) << ",";
-					oss << target_rot << ",";
-					oss << to_string(render_target_center) << ",";
-					oss << to_string(light_position) << std::endl;
-					gt_str.push_back(oss.str());
-
-					if(counter - 1 <= last_counter) {
-						continue;
-					} 
+					
+					if(resume) {
+						if(exists_test(output_fname)) {
+							std::cout << output_fname << " is skipped \n";
+							continue;
+						}
+					}
 
 					profiling.tic();
 					reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
+					gpuErrchk(cudaDeviceSynchronize());
 					for(int patch_i = 0; patch_i < patch_size; ++patch_i)
 						for(int patch_j = 0; patch_j < patch_size; ++patch_j) {
 							pixel_pos light_pixel_pos = {begin_pixel_pos.x + patch_i, begin_pixel_pos.y + patch_j};
 							vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
 							
+							reset_pixel<<<grid, block>>>(vec3(0.0f), tmp_pixels);
+							gpuErrchk(cudaDeviceSynchronize());
+
 							raster_hard_shadow<<<grid,block>>>(ground_plane, 
 								world_verts_cuda, 
 								world_verts.size(), 
@@ -461,7 +454,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 					profiling.print_elapsed();
 
 					out_img.save(output_fname);
-					std::cerr << "Finish: " << (float)counter / total_counter * 100.0f << "% \r";
+					std::cerr << "Finish: " << (float)++counter / total_counter * 100.0f << "% \r";
 					// return;
 				}
 			}
@@ -477,56 +470,85 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	cudaFree(out_pixels);
 	cudaFree(ground_plane);
 
-	std::ofstream output(output_folder + "/ground_truth.txt");
-	if (output.is_open()) {
-		for (auto &s : gt_str) {
-			output << s;
-		}
-	}
-
     t.toc();
 	t.print_elapsed();
 	std::string total_time = t.to_string();
-	std::cout << total_time << std::endl;
-	output.close();
+	std::cout << "Finish this model: "<< total_time << "s"<< std::endl;
 }
 
 int main(int argc, char *argv[]) {
-    std::cout << "There are " << argc << " params" << std::endl;
-	if (argc != 3 && argc != 8 && argc != 7) {
-		std::cerr << "Please check your input! \n";
-		std::cerr << "Should be xx model_path out_folder \n";
-		return 0;
+	try {
+		cxxopts::Options options("shadow rendering", "Give me parameters for camera and model rotation");
+		options
+		.add_options()
+		("cam_pitch", "A list of camera pitches", cxxopts::value<std::vector<float>>())
+		("model_rot", "A list of model rotations", cxxopts::value<std::vector<float>>())
+		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("true"))
+		("gpu","graphics card",cxxopts::value<int>()->default_value("0"))
+		("model","model file path",cxxopts::value<std::string>())
+		("output","output folder",cxxopts::value<std::string>())
+		;
+	
+		auto result = options.parse(argc, argv);
+	
+		if (result.count("help"))
+		{
+		  std::cout << options.help() << std::endl;
+		  exit(0);
+		}
+	
+		if(result.count("cam_pitch")) {
+			cam_pitch = result["cam_pitch"].as<std::vector<float>>();
+			std::cout << "Camera pitch list: \n";
+			for(const auto&v:cam_pitch) {
+				printf(" %f \n", v);
+			}
+		} else {
+			std::cout << "please set camera pitch \n";
+			exit(0);
+		}
+	
+		if(result.count("model_rot")) {
+			model_rot = result["model_rot"].as<std::vector<float>>();
+			std::cout << "Model rotation list: \n";
+			
+			for(const auto&v:model_rot) {
+				printf("%f \n", v);
+			}
+		}else {
+			std::cout << "please set model rotation \n";
+			exit(0);
+		}
+	
+		std::string model_file, output_folder;
+		if(result.count("model")) {
+			model_file = result["model"].as<std::string>();
+		} else {
+			std::cout << " please set model file path \n";
+		}
+	
+		if(result.count("output")) {
+			output_folder = result["output"].as<std::string>();
+		} else {
+			std::cout << " please set output folder \n";
+		}
+	
+		dev = result["gpu"].as<int>();
+		resume = result["resume"].as<bool>();
+
+		create_folder(output_folder);
+	
+		printf("begin render %s \n", model_file.c_str());
+		printf("gridx: %d, gridy: %d, blockx: %d, blocky: %d", nx, ny, tx, ty);
+		
+		render_data(model_file, output_folder);
+	
+		printf("finished %s \n", model_file.c_str());
+	}	
+	catch (const cxxopts::OptionException& e) {
+		std::cout << "error parsing options: " << e.what() << std::endl;
+    	exit(1);
 	}
-
-	for (int i = i_begin; i < 256; ++i) for (int j = 0; j < 512; ++j) {
-		ibl_map.push_back({ j, i });
-	}
-
-	std::string model_file = argv[1];
-	std::string output_folder = argv[2];
-    create_folder(output_folder);
-    
-    if(argc == 8) {
-        nx = std::stoi(argv[3]);
-        ny = std::stoi(argv[4]);
-        tx = std::stoi(argv[5]);
-        ty = std::stoi(argv[6]);
-        dev = std::stoi(argv[7]);
-    }
-    
-    if (argc == 7) {
-        dev = std::stoi(argv[3]);
-        if(std::stoi(argv[4])) resume = true;
-        if(std::stoi(argv[5])) camera_change = true;
-        last_counter = std::stoi(argv[6]);
-    }
-    
-    printf("gridx: %d, gridy: %d, blockx: %d, blocky: %d", nx, ny, tx, ty);
-	printf("resume from %d", last_counter);
-    render_data(model_file, output_folder);
-
-	printf("finished \n");
 
 	return 0;
 }

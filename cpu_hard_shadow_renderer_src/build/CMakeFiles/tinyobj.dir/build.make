@@ -63,10 +63,10 @@ RM = /opt/cmake-3.17.1-Linux-x86_64/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src
+CMAKE_SOURCE_DIR = /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build
+CMAKE_BINARY_DIR = /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/tinyobj.dir/depend.make
@@ -79,16 +79,16 @@ include CMakeFiles/tinyobj.dir/flags.make
 
 CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o: CMakeFiles/tinyobj.dir/flags.make
 CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o: ../tinyobjloader/tiny_obj_loader.cc
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o -c /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o -c /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc
 
 CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc > CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc > CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.i
 
 CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc -o CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.cc -o CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.s
 
 # Object files for target tinyobj
 tinyobj_OBJECTS = \
@@ -100,7 +100,7 @@ tinyobj_EXTERNAL_OBJECTS =
 libtinyobj.a: CMakeFiles/tinyobj.dir/tinyobjloader/tiny_obj_loader.cc.o
 libtinyobj.a: CMakeFiles/tinyobj.dir/build.make
 libtinyobj.a: CMakeFiles/tinyobj.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX static library libtinyobj.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX static library libtinyobj.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/tinyobj.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/tinyobj.dir/link.txt --verbose=$(VERBOSE)
 
@@ -114,6 +114,6 @@ CMakeFiles/tinyobj.dir/clean:
 .PHONY : CMakeFiles/tinyobj.dir/clean
 
 CMakeFiles/tinyobj.dir/depend:
-	cd /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles/tinyobj.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles/tinyobj.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/tinyobj.dir/depend
 

@@ -63,10 +63,10 @@ RM = /opt/cmake-3.17.1-Linux-x86_64/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src
+CMAKE_SOURCE_DIR = /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build
+CMAKE_BINARY_DIR = /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/hard_shadow.dir/depend.make
@@ -79,8 +79,8 @@ include CMakeFiles/hard_shadow.dir/flags.make
 
 CMakeFiles/hard_shadow.dir/main.cu.o: CMakeFiles/hard_shadow.dir/flags.make
 CMakeFiles/hard_shadow.dir/main.cu.o: ../main.cu
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CUDA object CMakeFiles/hard_shadow.dir/main.cu.o"
-	/usr/local/cuda/bin/nvcc  $(CUDA_DEFINES) $(CUDA_INCLUDES) $(CUDA_FLAGS) -x cu -dc /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/main.cu -o CMakeFiles/hard_shadow.dir/main.cu.o
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CUDA object CMakeFiles/hard_shadow.dir/main.cu.o"
+	/usr/local/cuda/bin/nvcc  $(CUDA_DEFINES) $(CUDA_INCLUDES) $(CUDA_FLAGS) -x cu -dc /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/main.cu -o CMakeFiles/hard_shadow.dir/main.cu.o
 
 CMakeFiles/hard_shadow.dir/main.cu.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CUDA source to CMakeFiles/hard_shadow.dir/main.cu.i"
@@ -92,55 +92,55 @@ CMakeFiles/hard_shadow.dir/main.cu.s: cmake_force
 
 CMakeFiles/hard_shadow.dir/common.cpp.o: CMakeFiles/hard_shadow.dir/flags.make
 CMakeFiles/hard_shadow.dir/common.cpp.o: ../common.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/hard_shadow.dir/common.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/common.cpp.o -c /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/hard_shadow.dir/common.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/common.cpp.o -c /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp
 
 CMakeFiles/hard_shadow.dir/common.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/hard_shadow.dir/common.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp > CMakeFiles/hard_shadow.dir/common.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp > CMakeFiles/hard_shadow.dir/common.cpp.i
 
 CMakeFiles/hard_shadow.dir/common.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/hard_shadow.dir/common.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp -o CMakeFiles/hard_shadow.dir/common.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp -o CMakeFiles/hard_shadow.dir/common.cpp.s
 
 CMakeFiles/hard_shadow.dir/mesh.cpp.o: CMakeFiles/hard_shadow.dir/flags.make
 CMakeFiles/hard_shadow.dir/mesh.cpp.o: ../mesh.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/hard_shadow.dir/mesh.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/mesh.cpp.o -c /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/hard_shadow.dir/mesh.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/mesh.cpp.o -c /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp
 
 CMakeFiles/hard_shadow.dir/mesh.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/hard_shadow.dir/mesh.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp > CMakeFiles/hard_shadow.dir/mesh.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp > CMakeFiles/hard_shadow.dir/mesh.cpp.i
 
 CMakeFiles/hard_shadow.dir/mesh.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/hard_shadow.dir/mesh.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp -o CMakeFiles/hard_shadow.dir/mesh.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp -o CMakeFiles/hard_shadow.dir/mesh.cpp.s
 
 CMakeFiles/hard_shadow.dir/model_loader.cpp.o: CMakeFiles/hard_shadow.dir/flags.make
 CMakeFiles/hard_shadow.dir/model_loader.cpp.o: ../model_loader.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/hard_shadow.dir/model_loader.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/model_loader.cpp.o -c /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/hard_shadow.dir/model_loader.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/model_loader.cpp.o -c /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp
 
 CMakeFiles/hard_shadow.dir/model_loader.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/hard_shadow.dir/model_loader.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp > CMakeFiles/hard_shadow.dir/model_loader.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp > CMakeFiles/hard_shadow.dir/model_loader.cpp.i
 
 CMakeFiles/hard_shadow.dir/model_loader.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/hard_shadow.dir/model_loader.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp -o CMakeFiles/hard_shadow.dir/model_loader.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp -o CMakeFiles/hard_shadow.dir/model_loader.cpp.s
 
 CMakeFiles/hard_shadow.dir/ppc.cpp.o: CMakeFiles/hard_shadow.dir/flags.make
 CMakeFiles/hard_shadow.dir/ppc.cpp.o: ../ppc.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/hard_shadow.dir/ppc.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/ppc.cpp.o -c /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/hard_shadow.dir/ppc.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/hard_shadow.dir/ppc.cpp.o -c /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp
 
 CMakeFiles/hard_shadow.dir/ppc.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/hard_shadow.dir/ppc.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp > CMakeFiles/hard_shadow.dir/ppc.cpp.i
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp > CMakeFiles/hard_shadow.dir/ppc.cpp.i
 
 CMakeFiles/hard_shadow.dir/ppc.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/hard_shadow.dir/ppc.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp -o CMakeFiles/hard_shadow.dir/ppc.cpp.s
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp -o CMakeFiles/hard_shadow.dir/ppc.cpp.s
 
 # Object files for target hard_shadow
 hard_shadow_OBJECTS = \
@@ -161,7 +161,7 @@ CMakeFiles/hard_shadow.dir/cmake_device_link.o: CMakeFiles/hard_shadow.dir/ppc.c
 CMakeFiles/hard_shadow.dir/cmake_device_link.o: CMakeFiles/hard_shadow.dir/build.make
 CMakeFiles/hard_shadow.dir/cmake_device_link.o: libtinyobj.a
 CMakeFiles/hard_shadow.dir/cmake_device_link.o: CMakeFiles/hard_shadow.dir/dlink.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CUDA device code CMakeFiles/hard_shadow.dir/cmake_device_link.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CUDA device code CMakeFiles/hard_shadow.dir/cmake_device_link.o"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/hard_shadow.dir/dlink.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -189,7 +189,7 @@ hard_shadow: CMakeFiles/hard_shadow.dir/build.make
 hard_shadow: libtinyobj.a
 hard_shadow: CMakeFiles/hard_shadow.dir/cmake_device_link.o
 hard_shadow: CMakeFiles/hard_shadow.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable hard_shadow"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable hard_shadow"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/hard_shadow.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -202,6 +202,6 @@ CMakeFiles/hard_shadow.dir/clean:
 .PHONY : CMakeFiles/hard_shadow.dir/clean
 
 CMakeFiles/hard_shadow.dir/depend:
-	cd /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles/hard_shadow.dir/DependInfo.cmake --color=$(COLOR)
+	cd /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build && $(CMAKE_COMMAND) -E cmake_depends "Unix Makefiles" /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/build/CMakeFiles/hard_shadow.dir/DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/hard_shadow.dir/depend
 

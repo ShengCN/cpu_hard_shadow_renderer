@@ -7,11 +7,11 @@ CUDA_FLAGS = -O3 -DNDEBUG   -std=c++11
 
 CUDA_DEFINES = 
 
-CUDA_INCLUDES = -I/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src 
+CUDA_INCLUDES = -I/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src 
 
 CXX_FLAGS = -O3 -DNDEBUG   -std=gnu++11
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src 
+CXX_INCLUDES = -I/home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src 
 

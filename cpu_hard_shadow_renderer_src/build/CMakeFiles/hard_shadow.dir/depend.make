@@ -193,6 +193,7 @@ CMakeFiles/hard_shadow.dir/main.cu.o: ../glm/vec3.hpp
 CMakeFiles/hard_shadow.dir/main.cu.o: ../glm/vec4.hpp
 CMakeFiles/hard_shadow.dir/main.cu.o: ../glm/vector_relational.hpp
 CMakeFiles/hard_shadow.dir/main.cu.o: ../common.h
+CMakeFiles/hard_shadow.dir/main.cu.o: ../cxxopts.hpp
 CMakeFiles/hard_shadow.dir/main.cu.o: ../main.cu
 CMakeFiles/hard_shadow.dir/main.cu.o: ../mesh.h
 CMakeFiles/hard_shadow.dir/main.cu.o: ../model_loader.h

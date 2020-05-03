@@ -193,12 +193,13 @@ CMakeFiles/hard_shadow.dir/main.cu.o
  ../glm/vec3.hpp
  ../glm/vec4.hpp
  ../glm/vector_relational.hpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/main.cu
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/cxxopts.hpp
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/main.cu
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.h
 CMakeFiles/hard_shadow.dir/common.cpp.o
  ../glm/common.hpp
  ../glm/detail/_fixes.hpp
@@ -389,10 +390,10 @@ CMakeFiles/hard_shadow.dir/common.cpp.o
  ../glm/vec3.hpp
  ../glm/vec4.hpp
  ../glm/vector_relational.hpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/stb/stb_image.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/stb/stb_image_write.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.cpp
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/stb/stb_image.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/stb/stb_image_write.h
 CMakeFiles/hard_shadow.dir/mesh.cpp.o
  ../glm/common.hpp
  ../glm/detail/_fixes.hpp
@@ -590,10 +591,10 @@ CMakeFiles/hard_shadow.dir/mesh.cpp.o
  ../glm/vec3.hpp
  ../glm/vec4.hpp
  ../glm/vector_relational.hpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.cpp
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
 CMakeFiles/hard_shadow.dir/model_loader.cpp.o
  ../glm/common.hpp
  ../glm/detail/_fixes.hpp
@@ -786,12 +787,12 @@ CMakeFiles/hard_shadow.dir/model_loader.cpp.o
  ../glm/vec3.hpp
  ../glm/vec4.hpp
  ../glm/vector_relational.hpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/mesh.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.cpp
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/model_loader.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/tinyobjloader/tiny_obj_loader.h
 CMakeFiles/hard_shadow.dir/ppc.cpp.o
  ../glm/common.hpp
  ../glm/detail/_fixes.hpp
@@ -984,6 +985,6 @@ CMakeFiles/hard_shadow.dir/ppc.cpp.o
  ../glm/vec3.hpp
  ../glm/vec4.hpp
  ../glm/vector_relational.hpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp
- /home/ysheng/Documents/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/common.h
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.cpp
+ /home/ysheng/Documents/jianming/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/ppc.h
