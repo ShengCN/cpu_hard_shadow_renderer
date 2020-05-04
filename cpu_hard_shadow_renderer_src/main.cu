@@ -444,7 +444,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 					gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 					
 					profiling.toc();
-					profiling.print_elapsed();
+					// profiling.print_elapsed();
 
 					out_img.save(output_fname);
 					std::cerr << "Finish: " << (float)++counter / total_counter * 100.0f << "% \r";
