@@ -276,7 +276,7 @@ void raster_hard_shadow(plane* grond_plane,
 			ray_aabb_intersect(r, aabb, ret);
 			if (ret) {
 				ret = false;
-				for (int ti = jdx; ti < N / 6; ti += j_stride) {
+				for (int ti = jdx; ti < N / 3; ti += j_stride) {
 					vec3 p0 = world_verts[3 * ti + 0];
 					vec3 p1 = world_verts[3 * ti + 1];
 					vec3 p2 = world_verts[3 * ti + 2];

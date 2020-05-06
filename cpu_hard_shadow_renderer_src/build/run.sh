@@ -1,1 +1,1 @@
-nvprof ./hard_shadow ../..//simplified_models/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj ./output/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A 1 1 1 -1
+nvprof ./hard_shadow --model="../../general_models/airplane_0645.off"  --output="./output/airplane_0645" --cam_pitch="35" --model_rot="1" --resume="true" --gpu="0"
