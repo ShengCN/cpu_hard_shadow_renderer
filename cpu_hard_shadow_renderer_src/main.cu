@@ -384,7 +384,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
             // float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
             // set rotation
             render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
-
+			
 			auto world_verts = render_target->compute_world_space_coords();
 			AABB aabb = render_target->compute_world_aabb();
 			glm::vec3* world_verts_cuda;

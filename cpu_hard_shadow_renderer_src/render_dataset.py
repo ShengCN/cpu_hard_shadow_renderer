@@ -143,13 +143,15 @@ if __name__ == '__main__':
     parser.add_argument("--resume", help="skip the rendered image", action="store_true")
     parser.add_argument("--cam_pitch", type=str,help="list of camera pitch")
     parser.add_argument("--model_rot", type=str, help="list of model rotation")
+    parser.add_argument("--model_folder", type=str, help="model folder")
     
     args = parser.parse_args()
 
     print('parameters: {}'.format(args))
 
     # model_folder = '../simplified_models/'
-    model_folder = '../general_models/'
+    # model_folder = '../general_models/'
+    model_folder = args.model_folder
     model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
     print('There are {} model files'.format(len(model_files)))
     model_files.sort()
