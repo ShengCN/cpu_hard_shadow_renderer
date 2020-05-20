@@ -1,1 +1,1 @@
-nvprof ./hard_shadow --model="../../simplified_models/simulated_combine_female_short_outfits_audrey_blair_summertimefull_Base_Pose_Standing_A.obj"  --output="./output/simulated_combine_female_short_outfits_audrey_blair_summertimefull_Base_Pose_Standing_A" --cam_pitch="35" --model_rot="0" --resume="true" --gpu="0"
+nvprof ./hard_shadow --model="../../general_models/lamp_0016.off"  --output="./output/lamp" --cam_pitch="35" --model_rot="0" --resume="true" --gpu="0"

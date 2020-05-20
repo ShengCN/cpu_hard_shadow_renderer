@@ -321,6 +321,10 @@ void render_data(const std::string model_file, const std::string output_folder) 
     cudaSetDevice(dev);
 	// normalize and compute ground plane
 	render_target->normalize_position_orientation();
+	if (model_file.substr(model_file.size()-3) == "off") {
+		render_target->m_world = glm::rotate(deg2rad(90.0f), vec3(-1.0f,0.0f,0.0f)) * render_target->m_world;
+	}
+
 	AABB world_aabb = render_target->compute_world_aabb();
 	vec3 target_center = render_target->compute_world_center();
 
