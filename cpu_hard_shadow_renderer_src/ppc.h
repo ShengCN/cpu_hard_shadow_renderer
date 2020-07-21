@@ -37,7 +37,7 @@ public:
 	float _fov, _near, _far;
 	int _width, _height;
 
-	ppc(int w, int h, float fov, float p_near=0.001f, float p_far=100000.0f);
+	ppc(int w, int h, float fov, float p_near=0.001f, float p_far=100.0f);
 	~ppc();
 
 	bool save(const std::string file) {
