@@ -1,1 +1,1 @@
-nvprof ./hard_shadow --model="../../simplified_models/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj"  --output="./output/lamp" --cam_pitch="35, 45, 65" --model_rot="0, 30, 60" --resume="true" --gpu="0" --verbose
+nvprof ./hard_shadow --model="../../simplified_models/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj"  --output="./output/lamp" --cam_pitch="35, 45, 65" --model_rot="0, 30, 60" --resume="true" --gpu="0" --verbose --render_normal --render_depth

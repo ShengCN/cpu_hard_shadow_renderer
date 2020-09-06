@@ -20,9 +20,14 @@ int tx = 8, ty = 64;
 int dev = 0;
 bool resume = false;
 bool camera_change = false;
-bool verbose = false;
+bool verbose = true;
 const int patch_size = 8;
+int counter=0,total_counter=0;
+float light_relative_length = 11.0f;
 std::vector<float> cam_pitch, model_rot;
+timer profiling;
+std::string model_file, output_folder;
+bool render_shadow, render_mask, render_normal, render_depth;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -92,6 +97,16 @@ __host__ __device__
 void plane_ppc_intersect(plane* ground_plane, ray& cur_ray, glm::vec3& intersection_pos) {
 	 float t = glm::dot(ground_plane->p - cur_ray.ro, ground_plane->n) / glm::dot(cur_ray.rd, ground_plane->n);
 	 intersection_pos = cur_ray.ro + cur_ray.rd * t;
+}
+
+// given an ibl map and light center position
+// return the 3D light position
+vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
+	//todo
+	float x_fract = (float)x / w, y_fract = (float)y / h;
+	deg alpha, beta;
+	alpha = x_fract * 360.0f - 90.0f; beta = y_fract * 180.0f - 90.0f;
+	return vec3(cos(deg2rad(beta)) * cos(deg2rad(alpha)), sin(deg2rad(beta)), cos(deg2rad(beta)) * sin(deg2rad(alpha)));
 }
 
 __host__ __device__
@@ -336,20 +351,20 @@ void raster_mask(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::ve
 }
 
 __global__
-void raster_edges(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::vec3* pixels) {
+void raster_normal(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::vec3* pixels) {
 	// use thread id as i, j
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int i_stride = blockDim.x * gridDim.x;
 
 	for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) {
-		int i = ind - ind/cur_ppc._width * cur_ppc._width;
-		int j = h-1-(ind-i)/cur_ppc._width;
+		int i = ind - ind / cur_ppc._width * cur_ppc._width;
+		int j = h - 1 - (ind - i) / cur_ppc._width;
 
 		int cur_ind = (cur_ppc._height - 1 - j) * cur_ppc._width + i;
-		if(pixels[cur_ind].x > 0.1f) {
+		if (pixels[cur_ind].x > 0.1f) {
 			continue;
 		}
-		
+
 		bool ret = false;
 		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
 		ray_aabb_intersect(r, aabb, ret);
@@ -360,16 +375,11 @@ void raster_edges(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::v
 				vec3 p0 = world_verts[3 * ti + 0];
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
-				
+
 				ray_triangle_intersect(r, p0, p1, p2, ret);
 				if (ret) {
-					vec3 n = glm::normalize(glm::cross(p1-p0, p2-p1));
-					float z = (glm::dot(p0, n) - glm::dot(r.ro, n))/(glm::dot(r.rd, n));
-					// printf("f min: %f, z: %f \n", closest_z, z);
-					if (z > 0.0 && z < closest_z) {
-						closest_z = z;
-						pixels[cur_ind] = n;
-					}
+					vec3 n = glm::normalize(glm::cross(p1 - p0, p2 - p1));
+					pixels[cur_ind] = n;
 				}
 			}
 		}
@@ -406,7 +416,7 @@ void raster_depth(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::v
 				if (ret) {
 					vec3 n = glm::normalize(glm::cross(p1-p0, p2-p1));
 					float z = (glm::dot(p0, n) - glm::dot(r.ro, n))/(glm::dot(r.rd, n));
-					// printf("f min: %f, z: %f \n", closest_z, z);
+					 //printf("f min: %f, z: %f \n", closest_z, z);
 					if (z > 0.0 && z < closest_z) {
 						closest_z = z;
 						float value = (closest_z - cur_ppc._near)/(cur_ppc._far - cur_ppc._near);
@@ -418,14 +428,195 @@ void raster_depth(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::v
 	}
 }
 
-// given an ibl map and light center position
-// return the 3D light position
-vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
-	//todo
-	float x_fract = (float)x / w, y_fract = (float)y / h;
-	deg alpha, beta;
-	alpha = x_fract * 360.0f - 90.0f; beta = y_fract * 180.0f - 90.0f;
-	return vec3(cos(deg2rad(beta)) * cos(deg2rad(alpha)), sin(deg2rad(beta)), cos(deg2rad(beta)) * sin(deg2rad(alpha)));
+void shadow_render(glm::vec3* world_verts_cuda, 
+	int N, 
+	plane* ground_plane, 
+	AABB* aabb_cuda, 
+	ppc &cur_ppc, 
+	vec3 render_target_center,
+	int camera_pitch, 
+	int target_rot, 
+	glm::vec3* pixels, 
+	glm::vec3* tmp_pixels,
+	unsigned int* out_pixels, 
+	image &out_img) {
+	// ----------------------------------------------- SHADOW BASES ----------------------------------------------------
+	// 8x8 patch rendering 
+	// [0:512]x[i_begin:256] -> [0:128] x [i_begin/8:64]
+	for(int ibl_i = 0; ibl_i <= 512/patch_size; ++ibl_i) {
+		for(int ibl_j = i_begin/patch_size; ibl_j <= 256/patch_size; ++ibl_j) {
+			pixel_pos begin_pixel_pos = {ibl_i * patch_size, ibl_j * patch_size};
+			vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * light_relative_length + render_target_center;
+			
+			// std::cerr << ibl_i << " " << ibl_j << " " << to_string(light_position) << std::endl;
+
+			char buff[100];
+			snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
+			std::string cur_prefix = buff;
+			std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
+			
+			if(resume) {
+				if(exists_test(output_fname)) {
+					std::cout << output_fname << " is skipped \n";
+					++counter;
+					continue;
+				}
+			}
+			
+			dim3 grid(nx/tx, ny/ty);
+			dim3 block(tx, ty);
+
+			profiling.tic();
+			reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
+			gpuErrchk(cudaDeviceSynchronize());
+			for(int patch_i = 0; patch_i < patch_size; ++patch_i)
+				for(int patch_j = 0; patch_j < patch_size; ++patch_j) {
+					pixel_pos light_pixel_pos = {begin_pixel_pos.x + patch_i, begin_pixel_pos.y + patch_j};
+					vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
+					
+					reset_pixel<<<grid, block>>>(vec3(0.0f), tmp_pixels);
+					gpuErrchk(cudaDeviceSynchronize());
+
+					raster_hard_shadow<<<grid,block>>>(ground_plane, 
+						world_verts_cuda, 
+						N, 
+						aabb_cuda, 
+						cur_ppc, 
+						light_position, 
+						tmp_pixels);
+					gpuErrchk(cudaPeekAtLastError());
+					gpuErrchk(cudaDeviceSynchronize());
+					
+					add_array<<<grid, block>>>(w, h, tmp_pixels, pixels);
+					gpuErrchk(cudaDeviceSynchronize());
+			}
+			to_unsigned_array<<<grid, block>>>(w, h, patch_size, pixels, out_pixels);
+			gpuErrchk(cudaDeviceSynchronize());
+			gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+			
+			profiling.toc();
+			if (verbose) {
+				std::string total_time = profiling.to_string();
+				std::cerr << begin_pixel_pos.x << "," << begin_pixel_pos.y << " shadow rendering time: " << total_time << std::endl;
+			}
+
+			out_img.save(output_fname);
+			std::cerr << "Finish: " << (float)++counter / total_counter * 100.0f << "% \r";
+		}
+	}
+	// ----------------------------------------------- SHADOW BASES ----------------------------------------------------
+}
+
+void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
+	// ----------------------------------------------- Masks ----------------------------------------------------
+
+	//if(resume) {
+	//	if(exists_test(output_fname)) {
+	//		std::cout << output_fname << " is skipped \n";
+	//		continue;
+	//	}
+	//}
+	dim3 grid(nx / tx, ny / ty);
+	dim3 block(tx, ty);
+
+	timer profiling;
+	profiling.tic();
+	reset_pixel <<<grid, block >> > (vec3(0.0f), pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	raster_mask << <grid, block >> > (world_verts_cuda,
+		N,
+		aabb_cuda,
+		cur_ppc,
+		pixels);
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+
+	to_unsigned_array << <grid, block >> > (w, h, 1, pixels, out_pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+	profiling.toc();
+	if (verbose) {
+		std::string total_time = profiling.to_string();
+		std::cerr << "mask total time: " << total_time << std::endl;
+	}
+	out_img.save(output_fname);
+	// ----------------------------------------------- Masks ----------------------------------------------------
+}
+
+void normal_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
+	// ----------------------------------------------- Normal ----------------------------------------------------
+
+	//if(resume) {
+	//	if(exists_test(output_fname)) {
+	//		std::cout << output_fname << " is skipped \n";
+	//		continue;
+	//	}
+	//}
+	dim3 grid(nx / tx, ny / ty);
+	dim3 block(tx, ty);
+
+	timer profiling;
+	profiling.tic();
+	reset_pixel << <grid, block >> > (vec3(0.0f), pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	raster_normal << <grid, block >> > (world_verts_cuda,
+		N,
+		aabb_cuda,
+		cur_ppc,
+		pixels);
+	gpuErrchk(cudaPeekAtLastError());
+	gpuErrchk(cudaDeviceSynchronize());
+
+	to_unsigned_array << <grid, block >> > (w, h, 1, pixels, out_pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+	profiling.toc();
+	if (verbose) {
+		std::string total_time = profiling.to_string();
+		std::cerr << "normal total time: " << total_time << std::endl;
+	}
+	out_img.save(output_fname);
+	// ----------------------------------------------- Normal ----------------------------------------------------
+}
+
+
+void depth_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
+	// ----------------------------------------------- Depth ----------------------------------------------------
+
+	//if(resume) {
+	//	if(exists_test(output_fname)) {
+	//		std::cout << output_fname << " is skipped \n";
+	//		continue;
+	//	}
+	//}
+	dim3 grid(nx / tx, ny / ty);
+	dim3 block(tx, ty);
+
+	timer profiling;
+	profiling.tic();
+	reset_pixel << <grid, block >> > (vec3(0.0f), pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	raster_depth << <grid, block >> > (world_verts_cuda,
+		N,
+		aabb_cuda,
+		cur_ppc,
+		pixels);
+	gpuErrchk(cudaPeekAtLastError());	
+	gpuErrchk(cudaDeviceSynchronize());
+
+	to_unsigned_array << <grid, block >> > (w, h, 1, pixels, out_pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+	profiling.toc();
+	if (verbose) {
+		std::string total_time = profiling.to_string();
+		std::cerr << "depth total time: " << total_time << std::endl;
+	}
+	out_img.save(output_fname);
+	// ----------------------------------------------- Depth ----------------------------------------------------
 }
 
 void render_data(const std::string model_file, const std::string output_folder) {
@@ -470,15 +661,13 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 	vec3 render_target_center = render_target->compute_world_center();
 	float render_target_size = render_target->compute_world_aabb().diag_length();
-	float light_relative_length = 11.0f;
 	vec3 ppc_relative = vec3(0.0, 0.0, render_target_size) * 2.0f;
 	std::vector<std::string> gt_str;
     
 	timer t;
 	t.tic();
 
-	int counter = 0;
-	int total_counter = cam_pitch.size() * model_rot.size() * 256 * 512 / patch_size / patch_size;
+	total_counter = cam_pitch.size() * model_rot.size() * 256 * 512 / patch_size / patch_size;
 	std::cout << "total: " << total_counter << std::endl;
 	int total_pixel = w * h;
 	
@@ -494,7 +683,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMallocManaged(&ground_plane, sizeof(plane)));
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
 
-    timer profiling;
     // for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
 	for (const auto& camera_pitch:cam_pitch) {
         // float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
@@ -519,103 +707,32 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			gpuErrchk(cudaMemcpy(world_verts_cuda, world_verts.data(), world_verts.size() * sizeof(vec3), cudaMemcpyHostToDevice));
 			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
 			
-			// ----------------------------------------------- SHADOW BASES ----------------------------------------------------
-            // 8x8 patch rendering 
-            // [0:512]x[i_begin:256] -> [0:128] x [i_begin/8:64]
-            for(int ibl_i = 0; ibl_i <= 512/patch_size; ++ibl_i) {
-				for(int ibl_j = i_begin/patch_size; ibl_j <= 256/patch_size; ++ibl_j) {
-					pixel_pos begin_pixel_pos = {ibl_i * patch_size, ibl_j * patch_size};
-					vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * light_relative_length + render_target_center;
-					
-					// std::cerr << ibl_i << " " << ibl_j << " " << to_string(light_position) << std::endl;
-
-					char buff[100];
-					snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
-					std::string cur_prefix = buff;
-					std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
-					
-					if(resume) {
-						if(exists_test(output_fname)) {
-							std::cout << output_fname << " is skipped \n";
-							continue;
-						}
-					}
-
-					profiling.tic();
-					reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
-					gpuErrchk(cudaDeviceSynchronize());
-					for(int patch_i = 0; patch_i < patch_size; ++patch_i)
-						for(int patch_j = 0; patch_j < patch_size; ++patch_j) {
-							pixel_pos light_pixel_pos = {begin_pixel_pos.x + patch_i, begin_pixel_pos.y + patch_j};
-							vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
-							
-							reset_pixel<<<grid, block>>>(vec3(0.0f), tmp_pixels);
-							gpuErrchk(cudaDeviceSynchronize());
-
-							raster_hard_shadow<<<grid,block>>>(ground_plane, 
-								world_verts_cuda, 
-								world_verts.size(), 
-								aabb_cuda, 
-								*cur_ppc, 
-								light_position, 
-								tmp_pixels);
-							gpuErrchk(cudaPeekAtLastError());
-							gpuErrchk(cudaDeviceSynchronize());
-							
-							add_array<<<grid, block>>>(w, h, tmp_pixels, pixels);
-							gpuErrchk(cudaDeviceSynchronize());
-					}
-					to_unsigned_array<<<grid, block>>>(w, h, patch_size, pixels, out_pixels);
-					gpuErrchk(cudaDeviceSynchronize());
-					gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-					
-					profiling.toc();
-					if (verbose) {
-						std::string total_time = profiling.to_string();
-						std::cerr << "shadow rendering time: " << total_time << std::endl;
-					}
-
-					out_img.save(output_fname);
-					std::cerr << "Finish: " << (float)++counter / total_counter * 100.0f << "% \r";
-				}
-			}
-			// ----------------------------------------------- SHADOW BASES ----------------------------------------------------
+			// ------------------------------------ shadow ------------------------------------ // 
+			if (render_shadow)
+				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels,out_pixels, out_img);
 			
-			// ----------------------------------------------- Masks ----------------------------------------------------
+			std::string cur_prefix, output_fname;
 			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d", (int)camera_pitch, (int)target_rot);
-			std::string cur_prefix = buff;
-			std::string output_fname = output_folder + "/" + cur_prefix + "_mask.png";
+			cur_prefix = buff;
 			
-			if(resume) {
-				if(exists_test(output_fname)) {
-					std::cout << output_fname << " is skipped \n";
-					continue;
-				}
+			// ------------------------------------ mask ------------------------------------ //
+			if (render_mask) {
+				output_fname = output_folder + "/" + cur_prefix + "_mask.png";
+				mask_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
 
-			profiling.tic();
-			reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
-			gpuErrchk(cudaDeviceSynchronize());
-			raster_mask<<<32,8>>>(world_verts_cuda, 
-										 world_verts.size(), 
-										 aabb_cuda, 
-										 *cur_ppc, 
-										 pixels);
-			gpuErrchk(cudaPeekAtLastError());
-			gpuErrchk(cudaDeviceSynchronize());
-			
-			to_unsigned_array<<<grid, block>>>(w, h, 1, pixels, out_pixels);
-			gpuErrchk(cudaDeviceSynchronize());
-			gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-			
-			profiling.toc();
-			if (verbose) {
-				std::string total_time = profiling.to_string();
-				std::cerr << "mask total time: " << total_time << std::endl;
+			// ------------------------------------ normal ------------------------------------ //
+			if(render_normal) {
+				output_fname = output_folder + "/" + cur_prefix + "_normal.png";
+				normal_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
-			out_img.save(output_fname);
-			// ----------------------------------------------- Masks ----------------------------------------------------
 
+			// ------------------------------------ depth ------------------------------------ //
+			if(render_depth) {
+				output_fname = output_folder + "/" + cur_prefix + "_depth.png";
+				depth_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, output_fname);
+			}
+			
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
             
@@ -642,10 +759,14 @@ int main(int argc, char *argv[]) {
 		("cam_pitch", "A list of camera pitches", cxxopts::value<std::vector<float>>())
 		("model_rot", "A list of model rotations", cxxopts::value<std::vector<float>>())
 		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("true"))
-		("verbose","verbose time? ",cxxopts::value<bool>()->default_value("false"))
+		("verbose","verbose time? ",cxxopts::value<bool>()->default_value("true"))
 		("gpu","graphics card",cxxopts::value<int>()->default_value("0"))
 		("model","model file path",cxxopts::value<std::string>())
 		("output","output folder",cxxopts::value<std::string>())
+		("render_shadow", "do you need to render shadow", cxxopts::value<bool>()->default_value("false"))
+		("render_mask", "do you need to render mask", cxxopts::value<bool>()->default_value("false"))
+		("render_normal", "do you need to render normal", cxxopts::value<bool>()->default_value("false"))
+		("render_depth", "do you need to render depth", cxxopts::value<bool>()->default_value("false"))
 		;
 	
 		auto result = options.parse(argc, argv);
@@ -679,7 +800,6 @@ int main(int argc, char *argv[]) {
 			exit(0);
 		}
 	
-		std::string model_file, output_folder;
 		if(result.count("model")) {
 			model_file = result["model"].as<std::string>();
 		} else {
@@ -695,7 +815,11 @@ int main(int argc, char *argv[]) {
 		dev = result["gpu"].as<int>();
 		resume = result["resume"].as<bool>();
 		verbose = result["verbose"].as<bool>();
-
+		render_shadow = result["render_shadow"].as<bool>();
+		render_mask = result["render_mask"].as<bool>();
+		render_normal = result["render_normal"].as<bool>();
+		render_depth = result["render_depth"].as<bool>();
+		
 		create_folder(output_folder);
 	
 		printf("begin render %s \n", model_file.c_str());
