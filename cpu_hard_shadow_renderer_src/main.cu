@@ -110,35 +110,21 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 }
 
 __host__ __device__
-void ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
+float ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
+	glm::vec3 v0v1 = p1 - p0;
+	glm::vec3 v0v2 = p2 - p0;
+	glm::mat3 m;
+	m[0] = -r.rd; m[1] = v0v1; m[2] = v0v2;
+	glm::vec3 b = r.ro - p0;
 
-	constexpr float kEpsilon = 1e-8;
-	vec3 v0v1 = p1 - p0;
-	vec3 v0v2 = p2 - p0;
-	vec3 pvec = glm::cross(r.rd, v0v2);
-	float det = glm::dot(v0v1, pvec);
-	// if the determinant is negative the triangle is backfacing
-	// if the determinant is close to 0, the ray misses the triangle
-	if (det < kEpsilon) {
-		ret = false;
-		return;
-	}
-	float invDet = 1 / det;
-	vec3 tvec = r.ro - p0;
-	float u = glm::dot(tvec, pvec) * invDet;
-	if (u < 0 || u > 1) {
-		ret = false;
-		return;
-	}
-
-	vec3 qvec = glm::cross(tvec, v0v1);
-	float v = glm::dot(r.rd, qvec) * invDet;
-	if (v < 0 || u + v > 1) {
-		ret = false;
-		return;
+	glm::vec3 x = glm::inverse(m) * b;
+	float t = x.x, u = x.y, v = x.z;
+	if (t <= 0.0 || u < 0.0 || v < 0.0 || u > 1.0 || v >1.0 || u + v < 0.0 || u + v > 1.0) {
+		ret = false; return 0.0f;
 	}
 	
 	ret = true;
+	return std::sqrt(glm::dot(r.rd * t, r.rd * t));
 }
 
 __host__ __device__
@@ -263,10 +249,8 @@ void raster_hard_shadow(plane* grond_plane,
 	                    glm::vec3* pixels) {
 	// use thread id as i, j
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
-
+	
 	int i_stride = blockDim.x * gridDim.x;
-	int j_stride = blockDim.y * gridDim.y;
 
 	// iterate over the output image
 	// for (int j = jdx; j < cur_ppc._height; j += j_stride) {
@@ -280,10 +264,6 @@ void raster_hard_shadow(plane* grond_plane,
 			vec3 intersect_pos;
 			plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
 
-			// vec3 pixel_value = vec3(0.0f);
-			//// compute if it's hit by the light
-			//// hit_light(intersect_pos, world_verts, N, aabb, light_pos, ret);
-			
 			if(pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i].x > 0.5f) {
 				continue;
 			}
@@ -298,12 +278,12 @@ void raster_hard_shadow(plane* grond_plane,
 			ray_aabb_intersect(r, aabb, ret);
 			if (ret) {
 				ret = false;
-				for (int ti = jdx; ti < N / 3; ti += j_stride) {
+				for (int ti = 0; ti < N / 3; ti += 1) {
 					vec3 p0 = world_verts[3 * ti + 0];
 					vec3 p1 = world_verts[3 * ti + 1];
 					vec3 p2 = world_verts[3 * ti + 2];
 					
-					ray_triangle_intersect(r, p0, p1, p2, ret);
+					float t = ray_triangle_intersect(r, p0, p1, p2, ret);
 					if (ret) {
 						pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = vec3(1.0f);
 						break;
@@ -317,33 +297,29 @@ __global__
 void raster_mask(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::vec3* pixels) {
 	// use thread id as i, j
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	int jdx = blockDim.y * blockIdx.y + threadIdx.y;
 
 	int i_stride = blockDim.x * gridDim.x;
-	int j_stride = blockDim.y * gridDim.y;
 	for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) {
 		int i = ind - ind/cur_ppc._width * cur_ppc._width;
 		int j = h-1-(ind-i)/cur_ppc._width;
 
 		int cur_ind = (cur_ppc._height - 1 - j) * cur_ppc._width + i;
-		if(pixels[cur_ind].x > 0.1f) {
-			continue;
-		}
 		
 		bool ret = false;
 		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
 		ray_aabb_intersect(r, aabb, ret);
 		if (ret) {
 			ret = false;
-			for (int ti = jdx; ti < N / 3; ti += j_stride) {
+			float min_tt = FLT_MAX;
+			for (int ti = 0; ti < N / 3; ti += 1) {
 				vec3 p0 = world_verts[3 * ti + 0];
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
 				
-				ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
+				float t = ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret && t < min_tt) {
+					min_tt = t;
 					pixels[cur_ind] = vec3(1.0f);
-					break;
 				}
 			}
 		}
@@ -376,8 +352,9 @@ void raster_normal(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
 
-				ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
+				float t = ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret && t < closest_z) {
+					closest_z = t;
 					vec3 n = glm::normalize(glm::cross(p1 - p0, p2 - p1));
 					pixels[cur_ind] = n;
 				}
@@ -412,16 +389,11 @@ void raster_depth(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::v
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
 				
-				ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
-					vec3 n = glm::normalize(glm::cross(p1-p0, p2-p1));
-					float z = (glm::dot(p0, n) - glm::dot(r.ro, n))/(glm::dot(r.rd, n));
-					 //printf("f min: %f, z: %f \n", closest_z, z);
-					if (z > 0.0 && z < closest_z) {
-						closest_z = z;
-						float value = (closest_z - cur_ppc._near)/(cur_ppc._far - cur_ppc._near);
-						pixels[cur_ind] = vec3(value);
-					}
+				float z = ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret &&  z < closest_z) {
+					closest_z = z;
+					float value = (closest_z - cur_ppc._near)/(cur_ppc._far - cur_ppc._near);
+					pixels[cur_ind] = vec3(value);
 				}
 			}
 		}
@@ -463,10 +435,8 @@ void shadow_render(glm::vec3* world_verts_cuda,
 				}
 			}
 			
-			dim3 grid(nx/tx, ny/ty);
-			dim3 block(tx, ty);
-
 			profiling.tic();
+			int grid = 512, block = 32 * 4;
 			reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
 			gpuErrchk(cudaDeviceSynchronize());
 			for(int patch_i = 0; patch_i < patch_size; ++patch_i)
@@ -516,8 +486,7 @@ void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_p
 	//		continue;
 	//	}
 	//}
-	dim3 grid(nx / tx, ny / ty);
-	dim3 block(tx, ty);
+	int grid = 512, block = 32 * 4;
 
 	timer profiling;
 	profiling.tic();
@@ -553,8 +522,7 @@ void normal_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur
 	//		continue;
 	//	}
 	//}
-	dim3 grid(nx / tx, ny / ty);
-	dim3 block(tx, ty);
+	int grid = 512, block = 32 * 4;
 
 	timer profiling;
 	profiling.tic();
@@ -591,8 +559,7 @@ void depth_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_
 	//		continue;
 	//	}
 	//}
-	dim3 grid(nx / tx, ny / ty);
-	dim3 block(tx, ty);
+	int grid = 512, block = 32 * 4;
 
 	timer profiling;
 	profiling.tic();
