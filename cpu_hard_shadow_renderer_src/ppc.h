@@ -93,8 +93,12 @@ public:
     }
     CUDA_HOSTDEV
 	vec3 GetViewVec() const { return _front; }
+	
 	CUDA_HOSTDEV
 	float get_fov() const { return _fov; }
+
+	CUDA_HOSTDEV
+	void set_fov(float f) { _fov = f;}
     
     CUDA_HOSTDEV
 	void PositionAndOrient(vec3 p, vec3 lookatP, vec3 up){

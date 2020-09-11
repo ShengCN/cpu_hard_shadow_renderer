@@ -431,9 +431,15 @@ void shadow_render(glm::vec3* world_verts_cuda,
 			
 			// std::cerr << ibl_i << " " << ibl_j << " " << to_string(light_position) << std::endl;
 
-			char buff[100];
-			snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
-			std::string cur_prefix = buff;
+			// char buff[100];
+			// snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
+			// std::string cur_prefix = buff;
+
+			std::string cur_prefix;
+			float fov = cur_ppc.get_fov();
+			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_fov_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, (int)fov,begin_pixel_pos.x, begin_pixel_pos.y);
+			cur_prefix = buff;
+			
 			std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
 			
 			if(resume) {
@@ -662,7 +668,23 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
 				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
 				vec3(0.0, 1.0, 0.0));
+			
+			// random sample fovs
+			float old_focal = cur_ppc->get_focal();
+			float old_dist = glm::length(ppc_relative);
 
+			float random_fov = pd::uniform_random(60,40);
+			while(random_fov<=20 || random_fov >=140) {
+				random_fov = pd::uniform_random(60,20);
+			}
+			cur_ppc->set_fov(random_fov);
+			float new_focal = cur_ppc->get_focal();
+			float new_dist = old_dist / old_focal * new_focal;
+			vec3 new_relative = vec3(0.0f,0.0f,new_dist);
+			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * new_relative + render_target_center,
+				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
+				vec3(0.0, 1.0, 0.0));
+			
 			
 			auto world_verts = render_target->compute_world_space_coords();
 			AABB aabb = render_target->compute_world_aabb();
@@ -689,7 +711,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			cur_ppc->pitch(-(cur_ppc->get_fov() * 0.5f - ang_rad));
 			
 			std::string cur_prefix, output_fname;
-			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d", (int)camera_pitch, (int)target_rot);
+			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_fov_%d", (int)camera_pitch, (int)target_rot, (int)random_fov);
 			cur_prefix = buff;
 
 			// ------------------------------------ mask ------------------------------------ //

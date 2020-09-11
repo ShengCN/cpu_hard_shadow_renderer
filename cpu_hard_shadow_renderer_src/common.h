@@ -85,6 +85,13 @@ namespace purdue {
 	inline float deg2quat(pd::deg d) {
 		return std::cos(deg2rad(d / 2));
 	}
+	
+	inline float uniform_random(float center, float sigma) {
+		std::random_device rd;
+		std::mt19937 engine(rd());
+		std::normal_distribution<float> dist(center, sigma);
+		return dist(engine);
+	}
 
 	inline float random_float(float fmin = 0.0f, float fmax = 1.0f) {
 		// engine
