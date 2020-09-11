@@ -739,6 +739,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
+			*cur_ppc = old_ppc;
 		}
 		
 		// set back rotation
