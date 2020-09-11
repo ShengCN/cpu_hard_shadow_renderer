@@ -3,6 +3,8 @@
 #include <glm/gtx/transform.hpp>
 #include <vector>
 #include <limits>
+#include <stdio.h>
+#include <math.h>
 
 #include "cxxopts.hpp"
 #include "common.h"
@@ -14,7 +16,7 @@ const int w = 256, h = 256;
 using namespace purdue;
 // int i_begin = 256 - (int)((60.0 / 90.0) * 256 * 0.5);
 // int i_begin = 256 - 80;
-int i_begin = 0;
+int i_begin = 256/2;
 int nx = 256, ny = 256;
 int tx = 8, ty = 64;
 int dev = 0;
@@ -74,6 +76,13 @@ struct image {
 		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[1] = (unsigned char)(255.0 * p.y);
 		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[2] = (unsigned char)(255.0 * p.z);
 		reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[3] = (unsigned char)(255);
+	}
+
+	glm::vec3 at(int u, int v) {
+		size_t ind = (h - 1 - v) * w + u;
+		unsigned int p = pixels.at(ind);
+		glm::vec3 ret(reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[0]/255.0f, reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[1]/255.0f, reinterpret_cast<unsigned char*>(&(pixels.at(ind)))[2]/255.0);
+		return ret;
 	}
 
 	bool save(const std::string fname) {
@@ -479,13 +488,6 @@ void shadow_render(glm::vec3* world_verts_cuda,
 
 void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
 	// ----------------------------------------------- Masks ----------------------------------------------------
-
-	//if(resume) {
-	//	if(exists_test(output_fname)) {
-	//		std::cout << output_fname << " is skipped \n";
-	//		continue;
-	//	}
-	//}
 	int grid = 512, block = 32 * 4;
 
 	timer profiling;
@@ -509,7 +511,9 @@ void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_p
 		std::string total_time = profiling.to_string();
 		std::cerr << "mask total time: " << total_time << std::endl;
 	}
-	out_img.save(output_fname);
+
+	if (output_fname != "")
+		out_img.save(output_fname);
 	// ----------------------------------------------- Masks ----------------------------------------------------
 }
 
@@ -639,49 +643,55 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	int total_pixel = w * h;
 	
 	image out_img(w,h);
-	dim3 grid(nx/tx, ny/ty);
-	dim3 block(tx, ty);
     glm::vec3* pixels, *tmp_pixels;
     unsigned int* out_pixels;
 	plane* ground_plane;
-	gpuErrchk(cudaMallocManaged((void**)&pixels, total_pixel * sizeof(glm::vec3)));
-	gpuErrchk(cudaMallocManaged((void**)&tmp_pixels, total_pixel * sizeof(glm::vec3)));
-	gpuErrchk(cudaMallocManaged(&out_pixels, total_pixel * sizeof(unsigned int)));
-	gpuErrchk(cudaMallocManaged(&ground_plane, sizeof(plane)));
+	gpuErrchk(cudaMalloc((void**)&pixels, total_pixel * sizeof(glm::vec3)));
+	gpuErrchk(cudaMalloc((void**)&tmp_pixels, total_pixel * sizeof(glm::vec3)));
+	gpuErrchk(cudaMalloc(&out_pixels, total_pixel * sizeof(unsigned int)));
+	gpuErrchk(cudaMalloc(&ground_plane, sizeof(plane)));
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
 
     // for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
-	for (const auto& camera_pitch:cam_pitch) {
         // float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
 		
-		// set camera rotation
-        cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
-            render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
-            vec3(0.0, 1.0, 0.0));
-                
-       //  for (int trni = 0; trni < target_rotation_num; ++trni) {
-		for(const auto& target_rot:model_rot) {
-            // float target_rot = lerp(0.0f, 360.0f, (float)trni / target_rotation_num);
-            // set rotation
-            render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
+	for(const auto& target_rot:model_rot) {
+        render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
+		for (const auto& camera_pitch:cam_pitch) {
+			// set camera rotation
+			cur_ppc->PositionAndOrient(glm::rotate(deg2rad(camera_pitch), glm::vec3(-1.0, 0.0, 0.0)) * ppc_relative + render_target_center,
+				render_target_center - vec3(0.0, render_target_center.y * 0.5f, 0.0),
+				vec3(0.0, 1.0, 0.0));
+
 			
 			auto world_verts = render_target->compute_world_space_coords();
 			AABB aabb = render_target->compute_world_aabb();
 			glm::vec3* world_verts_cuda;
 			AABB* aabb_cuda;
-			gpuErrchk(cudaMallocManaged(&world_verts_cuda, world_verts.size() * sizeof(glm::vec3)));
-			gpuErrchk(cudaMallocManaged(&aabb_cuda, sizeof(AABB)));
+			gpuErrchk(cudaMalloc(&world_verts_cuda, world_verts.size() * sizeof(glm::vec3)));
+			gpuErrchk(cudaMalloc(&aabb_cuda, sizeof(AABB)));
 			gpuErrchk(cudaMemcpy(world_verts_cuda, world_verts.data(), world_verts.size() * sizeof(vec3), cudaMemcpyHostToDevice));
 			gpuErrchk(cudaMemcpy(aabb_cuda, &aabb, sizeof(AABB), cudaMemcpyHostToDevice));
-			
-			// ------------------------------------ shadow ------------------------------------ // 
-			if (render_shadow)
-				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels,out_pixels, out_img);
+
+			// leave enough shadow space
+			mask_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, "");
+			int highest_h = 0;
+			for(int i = 0; i < w; ++i) {
+				for(int j = 0; j < h; ++j) {
+					if (out_img.at(i, j).x > 0.0f) {
+						highest_h = std::max(j, highest_h);
+					}
+				}
+			}
+			// get rotation angle
+			float focal = cur_ppc->get_focal();
+			float ang_rad = pd::rad2deg(std::atan((float)(highest_h-256/2 + 2)/focal));
+			cur_ppc->pitch(-(cur_ppc->get_fov() * 0.5f - ang_rad));
 			
 			std::string cur_prefix, output_fname;
 			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d", (int)camera_pitch, (int)target_rot);
 			cur_prefix = buff;
-			
+
 			// ------------------------------------ mask ------------------------------------ //
 			if (render_mask) {
 				output_fname = output_folder + "/" + cur_prefix + "_mask.png";
@@ -700,12 +710,17 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				depth_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
 			
+
+			// ------------------------------------ shadow ------------------------------------ // 
+			if (render_shadow)
+				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels,out_pixels, out_img);
+			
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
-            
-            // set back rotation
-            render_target->m_world = old_mat;
 		}
+		
+		// set back rotation
+		render_target->m_world = old_mat;
 	}
 	cudaFree(pixels);
 	cudaFree(tmp_pixels);

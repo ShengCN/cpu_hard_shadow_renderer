@@ -1559,6 +1559,10 @@ vector
 -
 limits
 -
+stdio.h
+-
+math.h
+-
 cxxopts.hpp
 /home/ysheng/Documents/paper_project/adobe/cpu_hard_shadow_renderer/cpu_hard_shadow_renderer_src/cxxopts.hpp
 common.h

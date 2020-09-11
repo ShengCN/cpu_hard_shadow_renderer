@@ -93,6 +93,8 @@ public:
     }
     CUDA_HOSTDEV
 	vec3 GetViewVec() const { return _front; }
+	CUDA_HOSTDEV
+	float get_fov() const { return _fov; }
     
     CUDA_HOSTDEV
 	void PositionAndOrient(vec3 p, vec3 lookatP, vec3 up){
@@ -131,7 +133,7 @@ public:
    CUDA_HOSTDEV
     float get_focal() const {
         float rad = 0.5f * _fov /180.0 * 3.1415926;
-        return 0.5f * _width / std::tan(rad);
+        return 0.5f * _height/ std::tan(rad);
     }
 
 	std::string to_string();
