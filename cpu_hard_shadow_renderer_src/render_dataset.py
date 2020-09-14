@@ -19,8 +19,8 @@ def worker(input_param):
     os.makedirs(output_folder, exist_ok=True)
     
     newest_prefix = get_newest_prefix(output_folder)
-    # os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_shadow --render_mask --render_normal --render_depth'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
-    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
+    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_shadow --render_mask --render_normal --render_depth --render_ground --render_height'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
+    # os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
               
 def base_compute(param):
     x, y, shadow_list = param
@@ -182,7 +182,7 @@ def render(args, model_files):
     os.makedirs(height_out, exist_ok=True)
     
     render_shadows(args, model_files)
-    # render_bases(args, model_files)
+    render_bases(args, model_files)
     copy_channels(args, model_files)
     
 if __name__ == '__main__':
