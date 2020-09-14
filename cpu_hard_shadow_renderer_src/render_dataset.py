@@ -20,7 +20,7 @@ def worker(input_param):
     
     newest_prefix = get_newest_prefix(output_folder)
     # os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_shadow --render_mask --render_normal --render_depth'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
-    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
+    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground'.format(model, output_folder, gpu, resume,cam_pitch,model_rot))
               
 def base_compute(param):
     x, y, shadow_list = param
@@ -147,7 +147,7 @@ def render_bases(args, model_files):
         
     print('Bases render finish, check folder {}'.format(base_ds_root))
 
-def copy_masks(args, model_files):
+def copy_channels(args, model_files):
     dataset_out = args.out_folder
 
     mask_out = join(dataset_out, 'mask')
@@ -170,16 +170,20 @@ def render(args, model_files):
     ds_root = os.path.join(cache_folder, 'shadow_output')
     base_ds_root = join(dataset_out, 'base')
     mask_out = join(dataset_out, 'mask')
+    sketch_out = join(dataset_out, 'sketch')
+    ground_out = join(dataset_out, 'ground')
+    height_out = join(dataset_out, 'height_map')
 
     os.makedirs(dataset_out, exist_ok=True)
     os.makedirs(cache_folder, exist_ok=True)
     os.makedirs(ds_root, exist_ok=True)
     os.makedirs(base_ds_root, exist_ok=True)
     os.makedirs(mask_out, exist_ok=True)
+    os.makedirs(height_out, exist_ok=True)
     
     render_shadows(args, model_files)
     # render_bases(args, model_files)
-    copy_masks(args, model_files)
+    copy_channels(args, model_files)
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
