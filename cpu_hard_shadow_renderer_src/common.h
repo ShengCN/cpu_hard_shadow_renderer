@@ -86,25 +86,26 @@ namespace purdue {
 		return std::cos(deg2rad(d / 2));
 	}
 	
-	inline float uniform_random(float center, float sigma) {
-		std::random_device rd;
-		std::mt19937 engine(rd());
+	// static std::random_device rd;
+	static std::mt19937 engine(0);
+	
+	inline float normal_random(float center, float sigma) {
 		std::normal_distribution<float> dist(center, sigma);
 		return dist(engine);
 	}
 
 	inline float random_float(float fmin = 0.0f, float fmax = 1.0f) {
 		// engine
-		std::random_device rd;
-		std::mt19937 engine(rd());
+		// std::random_device rd;
+		// std::mt19937 engine(rd());
 		std::uniform_real_distribution<float> u(fmin, fmax);
 		return u(engine);
 	}
 
 	inline int random_int(int mi = 0, int ma = 10) {
 		// engine
-		std::random_device rd;
-		std::mt19937 engine(rd());
+		// std::random_device rd;
+		// std::mt19937 engine(rd());
 		std::uniform_int_distribution<> dis(mi, ma);
 
 		return dis(engine);
