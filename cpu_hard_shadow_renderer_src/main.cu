@@ -276,14 +276,11 @@ void raster_hard_shadow(plane* grond_plane,
 			// compute the intersection point with the plane
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
 			vec3 intersect_pos;
-			if(plane_ppc_intersect(grond_plane, cur_ray, intersect_pos)) {
+			if(!plane_ppc_intersect(grond_plane, cur_ray, intersect_pos)) {
+				pixels[(cur_ppc._height - 1 - j)] = vec3(0.0f);
 				continue;
 			}
 
-			if(pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i].x > 0.5f) {
-				continue;
-			}
-			
 			bool ret = false;
 			ray r = { intersect_pos, light_pos - intersect_pos };
 			if (r.rd.y < 0.0f) {
@@ -849,12 +846,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				output_fname = output_folder + "/" + cur_prefix + "_depth.png";
 				depth_render(world_verts_cuda, world_verts.size(), aabb_cuda, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
-			
 
-			// ------------------------------------ shadow ------------------------------------ // 
-			if (render_shadow)
-				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels, out_pixels, out_img);
-			
 			// ------------------------------------ ground ------------------------------------ // 
 			if (render_ground) {
 				output_fname = output_folder + "/" + cur_prefix + "_ground.png";
@@ -869,6 +861,10 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				heightmap_render(world_verts_cuda, world_verts.size(), aabb_cuda, ground_plane, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
 
+			// ------------------------------------ shadow ------------------------------------ // 
+			if (render_shadow)
+				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels, out_pixels, out_img);
+			
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
 			*cur_ppc = old_ppc;
@@ -895,7 +891,7 @@ int main(int argc, char *argv[]) {
 		.add_options()
 		("cam_pitch", "A list of camera pitches", cxxopts::value<std::vector<float>>())
 		("model_rot", "A list of model rotations", cxxopts::value<std::vector<float>>())
-		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("true"))
+		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("false"))
 		("verbose","verbose time? ",cxxopts::value<bool>()->default_value("true"))
 		("gpu","graphics card",cxxopts::value<int>()->default_value("0"))
 		("model","model file path",cxxopts::value<std::string>())
