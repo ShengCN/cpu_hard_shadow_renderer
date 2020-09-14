@@ -791,9 +791,9 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			float old_focal = cur_ppc->get_focal();
 			float old_dist = glm::length(ppc_relative);
 
-			float random_fov = pd::uniform_random(60,40);
+			float random_fov = pd::normal_random(60,40);
 			while(random_fov<=20 || random_fov >=140) {
-				random_fov = pd::uniform_random(60,20);
+				random_fov = pd::normal_random(60,40);
 			}
 			cur_ppc->set_fov(random_fov);
 			float new_focal = cur_ppc->get_focal();
