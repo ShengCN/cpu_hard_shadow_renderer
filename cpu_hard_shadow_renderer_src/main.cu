@@ -29,7 +29,7 @@ float light_relative_length = 11.0f;
 std::vector<float> cam_pitch, model_rot;
 timer profiling;
 std::string model_file, output_folder;
-bool render_shadow, render_mask, render_normal, render_depth, render_ground;
+bool render_shadow, render_mask, render_normal, render_depth, render_ground, render_height;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -436,6 +436,52 @@ void raster_ground(plane *ground_plane, ppc cur_ppc, glm::vec3 *pixels) {
 	}
 }
 
+__host__ __device__
+float height_transform(float h, float norm_size) {
+	return h/norm_size;	
+}
+
+__global__ 
+void raster_height(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane, ppc cur_ppc, glm::vec3 *pixels) {
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int i_stride = blockDim.x * gridDim.x;
+
+	for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) { 
+		int i = ind - ind/cur_ppc._width * cur_ppc._width;
+		int j = h-1-(ind-i)/cur_ppc._width;
+		int cur_ind = (cur_ppc._height - 1 - j) * cur_ppc._width + i;
+
+		// sky color 1.0
+		pixels[cur_ind] = glm::vec3(1.0f);
+
+		ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
+		vec3 intersect_pos;
+		if(plane_ppc_intersect(ground_plane, cur_ray, intersect_pos)) {
+			pixels[cur_ind] = vec3(0.0f);
+		} 		
+		
+		bool ret = false;
+		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
+		ray_aabb_intersect(r, aabb, ret);
+		if (ret) {
+			ret = false;
+			float closest_z = FLT_MAX;
+			for (int ti = 0; ti < N / 3; ti += 1) {
+				vec3 p0 = world_verts[3 * ti + 0];
+				vec3 p1 = world_verts[3 * ti + 1];
+				vec3 p2 = world_verts[3 * ti + 2];
+				
+				float z = ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret &&  z < closest_z) {
+					vec3 p = r.ro + r.rd * z;
+					float h = std::abs(glm::dot(p-ground_plane->p, ground_plane->n));
+					pixels[cur_ind] = vec3(height_transform(h, 1.0f) * 0.9f);
+				}
+			}
+		}
+	}
+}
+
 void shadow_render(glm::vec3* world_verts_cuda, 
 	int N, 
 	plane* ground_plane, 
@@ -647,6 +693,30 @@ void ground_render(plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsign
 	out_img.save(output_fname);
 }
 
+void heightmap_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
+	int grid = 512, block = 32 * 4;
+	timer profiling;
+	profiling.tic();
+	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	
+	raster_height << <grid, block>> > (world_verts_cuda, N, aabb, ground_plane, cur_ppc, pixels);
+	
+	gpuErrchk(cudaPeekAtLastError());	
+	gpuErrchk(cudaDeviceSynchronize());
+
+	to_unsigned_array << <grid, block >> > (w, h, 1, pixels, out_pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+	profiling.toc();
+	if (verbose) {
+		std::string total_time = profiling.to_string();
+		std::cerr << "heightmap total time: " << total_time << std::endl;
+	}
+	out_img.save(output_fname);
+}	
+
 void render_data(const std::string model_file, const std::string output_folder) {
 	std::shared_ptr<mesh> render_target;
     
@@ -792,6 +862,13 @@ void render_data(const std::string model_file, const std::string output_folder) 
 				ground_render(ground_plane, *cur_ppc, pixels, out_pixels, out_img, output_fname);
 			}
 			
+			// ------------------------------------ heightmap ------------------------------------ // 
+			if (render_height) {
+				output_fname = output_folder + "/" + cur_prefix + "_heightmap.png";
+
+				heightmap_render(world_verts_cuda, world_verts.size(), aabb_cuda, ground_plane, *cur_ppc, pixels, out_pixels, out_img, output_fname);
+			}
+
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
 			*cur_ppc = old_ppc;
@@ -828,6 +905,7 @@ int main(int argc, char *argv[]) {
 		("render_normal", "do you need to render normal", cxxopts::value<bool>()->default_value("false"))
 		("render_depth", "do you need to render depth", cxxopts::value<bool>()->default_value("false"))
 		("render_ground", "do you need to render ground", cxxopts::value<bool>()->default_value("false"))
+		("render_height", "do you need to render height", cxxopts::value<bool>()->default_value("false"))
 		;
 	
 		auto result = options.parse(argc, argv);
@@ -881,6 +959,7 @@ int main(int argc, char *argv[]) {
 		render_normal = result["render_normal"].as<bool>();
 		render_depth = result["render_depth"].as<bool>();
 		render_ground = result["render_ground"].as<bool>();
+		render_height = result["render_height"].as<bool>();
 		
 		create_folder(output_folder);
 	
