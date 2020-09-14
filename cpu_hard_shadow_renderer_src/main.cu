@@ -29,7 +29,7 @@ float light_relative_length = 11.0f;
 std::vector<float> cam_pitch, model_rot;
 timer profiling;
 std::string model_file, output_folder;
-bool render_shadow, render_mask, render_normal, render_depth;
+bool render_shadow, render_mask, render_normal, render_depth, render_ground;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -103,9 +103,14 @@ bool save(const std::string fname, unsigned int* pixels, int w, int h) {
 }
 
 __host__ __device__
-void plane_ppc_intersect(plane* ground_plane, ray& cur_ray, glm::vec3& intersection_pos) {
-	 float t = glm::dot(ground_plane->p - cur_ray.ro, ground_plane->n) / glm::dot(cur_ray.rd, ground_plane->n);
-	 intersection_pos = cur_ray.ro + cur_ray.rd * t;
+bool plane_ppc_intersect(plane* ground_plane, ray& cur_ray, glm::vec3& intersection_pos) {
+	if(glm::dot(cur_ray.rd, ground_plane->n) > 0.0f) {
+		return false;
+	}
+
+	float t = glm::dot(ground_plane->p - cur_ray.ro, ground_plane->n) / glm::dot(cur_ray.rd, ground_plane->n);
+	intersection_pos = cur_ray.ro + cur_ray.rd * t;
+	return true;
 }
 
 // given an ibl map and light center position
@@ -271,7 +276,9 @@ void raster_hard_shadow(plane* grond_plane,
 			// compute the intersection point with the plane
 			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
 			vec3 intersect_pos;
-			plane_ppc_intersect(grond_plane, cur_ray, intersect_pos);
+			if(plane_ppc_intersect(grond_plane, cur_ray, intersect_pos)) {
+				continue;
+			}
 
 			if(pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i].x > 0.5f) {
 				continue;
@@ -405,6 +412,26 @@ void raster_depth(glm::vec3* world_verts, int N, AABB* aabb, ppc cur_ppc, glm::v
 					pixels[cur_ind] = vec3(value);
 				}
 			}
+		}
+	}
+}
+
+__global__ 
+void raster_ground(plane *ground_plane, ppc cur_ppc, glm::vec3 *pixels) {
+	int idx = blockDim.x * blockIdx.x + threadIdx.x;
+	int i_stride = blockDim.x * gridDim.x;
+
+	for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) { int i = ind - ind/cur_ppc._width * cur_ppc._width;
+		int j = h-1-(ind-i)/cur_ppc._width;
+		int cur_ind = (cur_ppc._height - 1 - j) * cur_ppc._width + i;
+
+		// compute the intersection point with the plane
+		ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
+		vec3 intersect_pos;
+		if(plane_ppc_intersect(ground_plane, cur_ray, intersect_pos)) {
+			pixels[cur_ind] = vec3(1.0f);
+		} else {
+			pixels[cur_ind] = vec3(0.0f);
 		}
 	}
 }
@@ -596,6 +623,30 @@ void depth_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_
 	// ----------------------------------------------- Depth ----------------------------------------------------
 }
 
+void ground_render(plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
+	int grid = 512, block = 32 * 4;
+	timer profiling;
+	profiling.tic();
+	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	
+	raster_ground << <grid, block>> > (ground_plane, cur_ppc, pixels);
+	
+	gpuErrchk(cudaPeekAtLastError());	
+	gpuErrchk(cudaDeviceSynchronize());
+
+	to_unsigned_array << <grid, block >> > (w, h, 1, pixels, out_pixels);
+	gpuErrchk(cudaDeviceSynchronize());
+	gpuErrchk(cudaMemcpy((unsigned int*)&out_img.pixels[0], out_pixels, out_img.pixels.size() * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+
+	profiling.toc();
+	if (verbose) {
+		std::string total_time = profiling.to_string();
+		std::cerr << "ground total time: " << total_time << std::endl;
+	}
+	out_img.save(output_fname);
+}
+
 void render_data(const std::string model_file, const std::string output_folder) {
 	std::shared_ptr<mesh> render_target;
     
@@ -658,9 +709,6 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	gpuErrchk(cudaMalloc(&ground_plane, sizeof(plane)));
 	gpuErrchk(cudaMemcpy(ground_plane, &cur_plane, sizeof(plane), cudaMemcpyHostToDevice));
 
-    // for (int cpni = 0; cpni < camera_pitch_num; ++cpni) {
-        // float camera_pitch = 15.0 + lerp(0.0f, 30.0f, (float)cpni / camera_pitch_num);
-		
 	for(const auto& target_rot:model_rot) {
         render_target->m_world = glm::rotate(deg2rad(target_rot), glm::vec3(0.0, 1.0, 0.0)) * render_target->m_world;
 		for (const auto& camera_pitch:cam_pitch) {
@@ -735,7 +783,14 @@ void render_data(const std::string model_file, const std::string output_folder) 
 
 			// ------------------------------------ shadow ------------------------------------ // 
 			if (render_shadow)
-				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels,out_pixels, out_img);
+				shadow_render(world_verts_cuda, world_verts.size(), ground_plane, aabb_cuda, *cur_ppc, render_target_center,camera_pitch, target_rot, pixels, tmp_pixels, out_pixels, out_img);
+			
+			// ------------------------------------ ground ------------------------------------ // 
+			if (render_ground) {
+				output_fname = output_folder + "/" + cur_prefix + "_ground.png";
+
+				ground_render(ground_plane, *cur_ppc, pixels, out_pixels, out_img, output_fname);
+			}
 			
 			cudaFree(world_verts_cuda);
 			cudaFree(aabb_cuda);
@@ -772,6 +827,7 @@ int main(int argc, char *argv[]) {
 		("render_mask", "do you need to render mask", cxxopts::value<bool>()->default_value("false"))
 		("render_normal", "do you need to render normal", cxxopts::value<bool>()->default_value("false"))
 		("render_depth", "do you need to render depth", cxxopts::value<bool>()->default_value("false"))
+		("render_ground", "do you need to render ground", cxxopts::value<bool>()->default_value("false"))
 		;
 	
 		auto result = options.parse(argc, argv);
@@ -824,6 +880,7 @@ int main(int argc, char *argv[]) {
 		render_mask = result["render_mask"].as<bool>();
 		render_normal = result["render_normal"].as<bool>();
 		render_depth = result["render_depth"].as<bool>();
+		render_ground = result["render_ground"].as<bool>();
 		
 		create_folder(output_folder);
 	
