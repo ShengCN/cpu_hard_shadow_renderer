@@ -9,6 +9,15 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import shutil
+import cv2
+
+def sketch(normal, depth):
+    normal_img, depth_img = cv2.imread(normal), cv2.imread(depth)
+    normal_edge = cv2.Canny(normal_img, 0, 200)
+    depth_edge = cv2.Canny(depth_img, 0, 10)
+    alpha = 0.3
+    merged_edge = normal_edge * (1.0-alpha) + depth_edge * alpha
+    return merged_edge
 
 def get_newest_prefix(out_folder):
     files = [f for f in os.listdir(out_folder) if (os.path.isfile(os.path.join(out_folder, f))) and (f.find('_shadow')!=-1)]
@@ -151,19 +160,48 @@ def copy_channels(args, model_files):
     dataset_out = args.out_folder
 
     mask_out = join(dataset_out, 'mask')
+    ground_out = join(dataset_out, 'ground')
+    heightmap_out = join(dataset_out, 'heightmap')
+    sketch_out = join(dataset_out, 'sketch')
+
     cache_folder = join(dataset_out, 'cache') 
     ds_root = join(cache_folder, 'shadow_output')
     for i, f in tqdm(enumerate(model_files)):        
         model_fname = os.path.splitext(os.path.basename(f))[0]
         out_folder = os.path.join(ds_root, model_fname)
         mask_files = [f for f in os.listdir(out_folder) if f.find('mask') != -1]
+        ground_files = [f for f in os.listdir(out_folder) if f.find('ground') != -1]
+        heightmap_files = [f for f in os.listdir(out_folder) if f.find('heightmap') != -1]
+        normal_files = [f for f in os.listdir(out_folder) if f.find('normal') != -1]
         
         cur_mask_out = join(mask_out, model_fname)
         os.makedirs(cur_mask_out, exist_ok=True)
+        
+        cur_ground_out = join(ground_out, model_fname)
+        os.makedirs(cur_ground_out, exist_ok=True)
+        
+        cur_heightmap_out = join(heightmap_out, model_fname)
+        os.makedirs(cur_heightmap_out, exist_ok=True)
+        
+        cur_sketch_out = join(sketch_out, model_fname)
+        os.makedirs(cur_sketch_out, exist_ok=True)
 
         for mf in mask_files:
             shutil.copyfile(join(out_folder, mf), join(cur_mask_out, mf))
 
+        for mf in ground_files:
+            shutil.copyfile(join(out_folder, mf), join(cur_ground_out, mf))
+
+        for mf in heightmap_files:
+            shutil.copyfile(join(out_folder, mf), join(cur_heightmap_out, mf))
+
+        for mf in normal_files:
+            normal = join(out_folder, mf)
+            prefix = mf[:mf.find('_normal')]
+            depth = join(out_folder, prefix + "_depth.png")
+            sketch_img = sketch(normal, depth)
+            plt.imsave(join(cur_sketch_out, prefix + "_sketch.png"), sketch_img)
+            
 def render(args, model_files):
     dataset_out = args.out_folder
     cache_folder = join(dataset_out, 'cache') 
@@ -172,7 +210,7 @@ def render(args, model_files):
     mask_out = join(dataset_out, 'mask')
     sketch_out = join(dataset_out, 'sketch')
     ground_out = join(dataset_out, 'ground')
-    height_out = join(dataset_out, 'height_map')
+    height_out = join(dataset_out, 'heightmap')
 
     os.makedirs(dataset_out, exist_ok=True)
     os.makedirs(cache_folder, exist_ok=True)
@@ -180,10 +218,13 @@ def render(args, model_files):
     os.makedirs(base_ds_root, exist_ok=True)
     os.makedirs(mask_out, exist_ok=True)
     os.makedirs(height_out, exist_ok=True)
+    os.makedirs(sketch_out, exist_ok=True)
+    os.makedirs(ground_out, exist_ok=True)
     
-    render_shadows(args, model_files)
-    render_bases(args, model_files)
-    copy_channels(args, model_files)
+    for mf in tqdm(model_files):
+        render_shadows(args, [mf])
+        render_bases(args, [mf])
+        copy_channels(args, [mf])
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -203,6 +244,7 @@ if __name__ == '__main__':
     model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
     print('There are {} model files'.format(len(model_files)))
     model_files.sort()
+    
     model_files = model_files[args.start_id : args.end_id+1]
     
     print('Will render {} files'.format(len(model_files)))
