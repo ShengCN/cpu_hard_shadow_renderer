@@ -1,0 +1,1 @@
+sudo nvprof ./hard_shadow --model="../../simplified_models/simulated_combine_female_short_outfits_taryn_riley_asopreload1_Base_Pose_Standing_C.obj" --output="./output/simulated_combine_female_short_outfits_taryn_riley_asopreload1_Base_Pose_Standing_C" --cam_pitch=30 --model_rot=0 --render_touch --render_mask
