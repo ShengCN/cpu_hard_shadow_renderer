@@ -28,7 +28,7 @@ def worker(input_param):
     os.makedirs(output_folder, exist_ok=True)
     
     newest_prefix = get_newest_prefix(output_folder)
-    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow'.format(model, output_folder, gpu, resume,cam_pitch, model_rot))
+    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow --render_touch'.format(model, output_folder, gpu, resume,cam_pitch, model_rot))
               
 def base_compute(param):
     x, y, shadow_list = param
@@ -162,6 +162,7 @@ def copy_channels(args, model_files):
     ground_out = join(dataset_out, 'ground')
     heightmap_out = join(dataset_out, 'heightmap')
     sketch_out = join(dataset_out, 'sketch')
+    touch_out = join(dataset_out, 'touch')
 
     cache_folder = join(dataset_out, 'cache') 
     ds_root = join(cache_folder, 'shadow_output')
@@ -172,6 +173,7 @@ def copy_channels(args, model_files):
         ground_files = [f for f in os.listdir(out_folder) if f.find('ground') != -1]
         heightmap_files = [f for f in os.listdir(out_folder) if f.find('heightmap') != -1]
         normal_files = [f for f in os.listdir(out_folder) if f.find('normal') != -1]
+        touch_files = [f for f in os.listdir(out_folder) if f.find('touch') != -1]
         
         cur_mask_out = join(mask_out, model_fname)
         os.makedirs(cur_mask_out, exist_ok=True)
@@ -185,6 +187,9 @@ def copy_channels(args, model_files):
         cur_sketch_out = join(sketch_out, model_fname)
         os.makedirs(cur_sketch_out, exist_ok=True)
 
+        cur_touch_out = join(touch_out, model_fname)
+        os.makedirs(cur_touch_out, exist_ok=True)
+
         for mf in mask_files:
             shutil.copyfile(join(out_folder, mf), join(cur_mask_out, mf))
 
@@ -193,6 +198,9 @@ def copy_channels(args, model_files):
 
         for mf in heightmap_files:
             shutil.copyfile(join(out_folder, mf), join(cur_heightmap_out, mf))
+
+        for mf in touch_files:
+            shutil.copyfile(join(out_folder, mf), join(cur_touch_out, mf))
 
         for mf in normal_files:
             normal = join(out_folder, mf)
@@ -210,6 +218,7 @@ def render(args, model_files):
     sketch_out = join(dataset_out, 'sketch')
     ground_out = join(dataset_out, 'ground')
     height_out = join(dataset_out, 'heightmap')
+    touch_out = join(dataset_out, 'touch')
 
     os.makedirs(dataset_out, exist_ok=True)
     os.makedirs(cache_folder, exist_ok=True)
@@ -219,10 +228,11 @@ def render(args, model_files):
     os.makedirs(height_out, exist_ok=True)
     os.makedirs(sketch_out, exist_ok=True)
     os.makedirs(ground_out, exist_ok=True)
+    os.makedirs(touch_out, exist_ok=True)
     
     for mf in tqdm(model_files):
         render_shadows(args, [mf])
-        # render_bases(args, [mf])
+        render_bases(args, [mf])
         copy_channels(args, [mf])
     
 if __name__ == '__main__':
