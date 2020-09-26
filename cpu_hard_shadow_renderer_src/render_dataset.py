@@ -24,11 +24,12 @@ def get_newest_prefix(out_folder):
     return len(files) - 1
 
 def worker(input_param):
-    model, output_folder, gpu, resume, cam_pitch, model_rot = input_param
+    model,model_id, output_folder, gpu, resume, cam_pitch, model_rot = input_param
     os.makedirs(output_folder, exist_ok=True)
     
     newest_prefix = get_newest_prefix(output_folder)
-    os.system('build/hard_shadow --model={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow --render_touch'.format(model, output_folder, gpu, resume,cam_pitch, model_rot))
+    os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow --render_touch'.format(model, model_id, output_folder, gpu, resume,cam_pitch, model_rot))
+    # os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_touch'.format(model, model_id, output_folder, gpu, resume,cam_pitch, model_rot))
               
 def base_compute(param):
     x, y, shadow_list = param
@@ -103,7 +104,7 @@ def multithreading_post_process(folder, output_folder, base_size=16):
         np.save(output_path, group_np)
     del group_np
 
-def render_shadows(args, model_files):
+def render_shadows(args, model_files, model_id):
     dataset_out = args.out_folder
     cache_folder = join(dataset_out, 'cache') 
     ds_root = os.path.join(cache_folder, 'shadow_output')
@@ -122,9 +123,9 @@ def render_shadows(args, model_files):
     resume_list = [resume_arg] * len(model_files)
     cam_pitch = [args.cam_pitch] * len(model_files)
     model_rot = [args.model_rot] * len(model_files)
+    model_id_list = [model_id] * len(model_files)
 
-
-    input_param = zip(model_files, output_list, graphics_card, resume_list, cam_pitch, model_rot)
+    input_param = zip(model_files, model_id_list, output_list, graphics_card, resume_list, cam_pitch, model_rot)
     total = len(model_files)
     processor_num = 1
     with multiprocessing.Pool(processor_num) as pool:
@@ -230,8 +231,8 @@ def render(args, model_files):
     os.makedirs(ground_out, exist_ok=True)
     os.makedirs(touch_out, exist_ok=True)
     
-    for mf in tqdm(model_files):
-        render_shadows(args, [mf])
+    for i, mf in enumerate(tqdm(model_files)):
+        render_shadows(args, [mf], i)
         render_bases(args, [mf])
         copy_channels(args, [mf])
     

@@ -1,1 +1,1 @@
-python render_dataset.py --gpu=1 --start_id=3 --end_id=4 --resume --cam_pitch=0 --model_rot=0 --model_folder="../simplified_models" --out_folder="/home/ysheng/Dataset/fov_exp"
+python render_dataset.py --gpu=1 --start_id=0 --end_id=66 --resume --cam_pitch=0,15,30 --model_rot=0,-90,90,-45,45 --model_folder="/home/ysheng/Dataset/general_models" --out_folder="/home/ysheng/Dataset/general_ds_render"

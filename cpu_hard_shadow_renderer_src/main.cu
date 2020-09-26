@@ -1019,6 +1019,7 @@ int main(int argc, char *argv[]) {
 	
 		dev = result["gpu"].as<int>();
 		int model_id = result["model_id"].as<int>();
+		printf("current model id: %d", model_id);
 		pd::engine = std::mt19937(model_id);
 		resume = result["resume"].as<bool>();
 		verbose = result["verbose"].as<bool>();
