@@ -962,6 +962,7 @@ int main(int argc, char *argv[]) {
 		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("false"))
 		("verbose","verbose time? ",cxxopts::value<bool>()->default_value("true"))
 		("gpu","graphics card",cxxopts::value<int>()->default_value("0"))
+		("model_id","random seed",cxxopts::value<int>()->default_value("0"))
 		("model","model file path",cxxopts::value<std::string>())
 		("output","output folder",cxxopts::value<std::string>())
 		("render_shadow", "do you need to render shadow", cxxopts::value<bool>()->default_value("false"))
@@ -1017,6 +1018,8 @@ int main(int argc, char *argv[]) {
 		}
 	
 		dev = result["gpu"].as<int>();
+		int model_id = result["model_id"].as<int>();
+		pd::engine = std::mt19937(model_id);
 		resume = result["resume"].as<bool>();
 		verbose = result["verbose"].as<bool>();
 		render_shadow = result["render_shadow"].as<bool>();

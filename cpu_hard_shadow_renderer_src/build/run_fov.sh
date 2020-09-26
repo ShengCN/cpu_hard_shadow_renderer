@@ -1,1 +1,0 @@
-sudo nvprof ./continuous_fov --model="../../simplified_models/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A.obj" --output="./output/notsimulated_combine_male_short_outfits_genesis8_armani_casualoutfit03_Base_Pose_Standing_A" --cam_pitch=0 --model_rot=0 --render_mask
