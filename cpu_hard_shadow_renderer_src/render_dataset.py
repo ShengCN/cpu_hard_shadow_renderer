@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import shutil
 import cv2
+import random
 
 def sketch(normal, depth):
     normal_img, depth_img = cv2.imread(normal), cv2.imread(depth)
@@ -232,9 +233,11 @@ def render(args, model_files):
     os.makedirs(touch_out, exist_ok=True)
     
     for i, mf in enumerate(tqdm(model_files)):
-        render_shadows(args, [mf], i)
-        render_bases(args, [mf])
-        copy_channels(args, [mf])
+        if args.base:
+            render_bases(args, [mf])
+        else:
+            render_shadows(args, [mf], i)
+            copy_channels(args, [mf])
     
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
@@ -246,6 +249,8 @@ if __name__ == '__main__':
     parser.add_argument("--model_rot", type=str, help="list of model rotation")
     parser.add_argument("--model_folder", type=str, help="model folder")
     parser.add_argument("--out_folder", type=str, help="dataset output folder")
+    parser.add_argument("--base", default=False, action='store_true', help="render_base")
+    parser.add_argument("--random", default=False, action='store_true', help="randomly select models")
     args = parser.parse_args()
 
     print('parameters: {}'.format(args))
@@ -254,8 +259,12 @@ if __name__ == '__main__':
     model_files = [os.path.join(model_folder, f) for f in os.listdir(model_folder) if os.path.isfile(os.path.join(model_folder, f))]
     print('There are {} model files'.format(len(model_files)))
     model_files.sort()
-    
-    model_files = model_files[args.start_id : args.end_id+1]
+
+    if args.random:
+        random.seed(19920208)
+        model_files = random.sample(model_files, args.end_id - args.start_id + 1)
+    else:
+        model_files = model_files[args.start_id : args.end_id+1]
     
     print('Will render {} files'.format(len(model_files)))
     begin = time.time()

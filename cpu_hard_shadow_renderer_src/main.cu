@@ -25,7 +25,7 @@ bool camera_change = false;
 bool verbose = true;
 const int patch_size = 8;
 int counter=0,total_counter=0;
-float light_relative_length = 11.0f;
+float light_relative_length = 41.0f;
 std::vector<float> cam_pitch, model_rot;
 timer profiling;
 std::string model_file, output_folder;
@@ -125,20 +125,34 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 
 __host__ __device__
 float ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
-	glm::vec3 v0v1 = p1 - p0;
-	glm::vec3 v0v2 = p2 - p0;
-	glm::mat3 m;
-	m[0] = -r.rd; m[1] = v0v1; m[2] = v0v2;
-	glm::vec3 b = r.ro - p0;
+	constexpr float kEpsilon = 1e-8;
+	vec3 v0v1 = p1 - p0;
+	vec3 v0v2 = p2 - p0;
+	vec3 pvec = glm::cross(r.rd, v0v2);
+	float det = glm::dot(v0v1, pvec);
+	// if the determinant is negative the triangle is backfacing
+	// if the determinant is close to 0, the ray misses the triangle
+	if (det < kEpsilon) {
+		ret = false;
+		return 0.0;
+	}
+	float invDet = 1 / det;
+	vec3 tvec = r.ro - p0;
+	float u = glm::dot(tvec, pvec) * invDet;
+	if (u < 0 || u > 1) {
+		ret = false;
+		return 0.0;
+	}
 
-	glm::vec3 x = glm::inverse(m) * b;
-	float t = x.x, u = x.y, v = x.z;
-	if (t <= 0.0 || u < 0.0 || v < 0.0 || u > 1.0 || v >1.0 || u + v < 0.0 || u + v > 1.0) {
-		ret = false; return 0.0f;
+	vec3 qvec = glm::cross(tvec, v0v1);
+	float v = glm::dot(r.rd, qvec) * invDet;
+	if (v < 0 || u + v > 1) {
+		ret = false;
+		return 0.0;
 	}
 	
 	ret = true;
-	return std::sqrt(glm::dot(r.rd * t, r.rd * t));
+	return invDet * glm::dot(v0v2, qvec);	
 }
 
 __host__ __device__
@@ -261,49 +275,40 @@ void raster_hard_shadow(plane* grond_plane,
 	                    ppc cur_ppc,
 	                    vec3 light_pos,
 	                    glm::vec3* pixels) {
-	// use thread id as i, j
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
-	
 	int i_stride = blockDim.x * gridDim.x;
 
-	// iterate over the output image
-	// for (int j = jdx; j < cur_ppc._height; j += j_stride) {
-	// 	for (int i = idx; i < cur_ppc._width; i += i_stride) {
-		for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) {
-			int i = ind - ind/cur_ppc._width * cur_ppc._width;
-			int j = h-1-(ind-i)/cur_ppc._width;
+	for (int ind = idx; ind < cur_ppc._height * cur_ppc._width; ind += i_stride) {
+		int i = ind - ind/cur_ppc._width * cur_ppc._width;
+		int j = h-1-(ind-i)/cur_ppc._width;
 
-			// compute the intersection point with the plane
-			ray cur_ray; cur_ppc.get_ray(i, j, cur_ray.ro, cur_ray.rd);
-			vec3 intersect_pos;
-			if(!plane_ppc_intersect(grond_plane, cur_ray, intersect_pos)) {
-				pixels[(cur_ppc._height - 1 - j)] = vec3(0.0f);
-				continue;
-			}
+		int cur_ind = (cur_ppc._height - 1 - j) * cur_ppc._width + i;
+		pixels[cur_ind] = vec3(0.0f);
 
-			bool ret = false;
-			ray r = { intersect_pos, light_pos - intersect_pos };
-			if (r.rd.y < 0.0f) {
-				pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = vec3(0.0f);
-				continue;
-			}
+		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
+		vec3 intersect_pos;
+		if (!plane_ppc_intersect(grond_plane, r, intersect_pos)) {
+			continue;
+		}
 
-			ray_aabb_intersect(r, aabb, ret);
-			if (ret) {
-				ret = false;
-				for (int ti = 0; ti < N / 3; ti += 1) {
-					vec3 p0 = world_verts[3 * ti + 0];
-					vec3 p1 = world_verts[3 * ti + 1];
-					vec3 p2 = world_verts[3 * ti + 2];
-					
-					float t = ray_triangle_intersect(r, p0, p1, p2, ret);
-					if (ret) {
-						pixels[(cur_ppc._height - 1 - j) * cur_ppc._width + i] = vec3(1.0f);
-						break;
-					}
+		bool ret = false;
+		r = {intersect_pos, glm::normalize(light_pos - intersect_pos)};
+		ray_aabb_intersect(r, aabb, ret);
+		if (ret) {
+			ret = false;
+			for (int ti = 0; ti < N / 3; ti += 1) {
+				vec3 p0 = world_verts[3 * ti + 0];
+				vec3 p1 = world_verts[3 * ti + 1];
+				vec3 p2 = world_verts[3 * ti + 2];
+				
+				ray_triangle_intersect(r, p0, p1, p2, ret);
+				if (ret) {
+					pixels[cur_ind] = vec3(1.0f);
+					break;
 				}
 			}
 		}
+	}
 }
 
 __global__
@@ -533,19 +538,13 @@ void shadow_render(glm::vec3* world_verts_cuda,
 	for(int ibl_i = 0; ibl_i <= 512/patch_size; ++ibl_i) {
 		for(int ibl_j = i_begin/patch_size; ibl_j <= 256/patch_size; ++ibl_j) {
 			pixel_pos begin_pixel_pos = {ibl_i * patch_size, ibl_j * patch_size};
-			vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * light_relative_length + render_target_center;
+			// vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * light_relative_length + render_target_center;
+			// vec3 light_position = compute_light_pos(begin_pixel_pos.x, begin_pixel_pos.y) * 400.0f + render_target_center;
 			
-			// std::cerr << ibl_i << " " << ibl_j << " " << to_string(light_position) << std::endl;
-
-			// char buff[100];
-			// snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, begin_pixel_pos.x, begin_pixel_pos.y);
-			// std::string cur_prefix = buff;
-
 			std::string cur_prefix;
 			float fov = cur_ppc.get_fov();
 			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_fov_%d_ibli_%d_iblj_%d", (int)camera_pitch, (int)target_rot, (int)fov,begin_pixel_pos.x, begin_pixel_pos.y);
 			cur_prefix = buff;
-			
 			std::string output_fname = output_folder + "/" + cur_prefix + "_shadow.png";
 			
 			if(resume) {
@@ -557,13 +556,13 @@ void shadow_render(glm::vec3* world_verts_cuda,
 			}
 			
 			profiling.tic();
-			int grid = 512, block = 32 * 4;
+			int grid = 512, block = (w * h + grid -1)/grid;
 			reset_pixel<<<grid, block>>>(vec3(0.0f), pixels);
 			gpuErrchk(cudaDeviceSynchronize());
 			for(int patch_i = 0; patch_i < patch_size; ++patch_i)
 				for(int patch_j = 0; patch_j < patch_size; ++patch_j) {
 					pixel_pos light_pixel_pos = {begin_pixel_pos.x + patch_i, begin_pixel_pos.y + patch_j};
-					vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * light_relative_length + render_target_center;
+					vec3 light_position = compute_light_pos(light_pixel_pos.x, light_pixel_pos.y) * 400000.0f + render_target_center;
 					
 					reset_pixel<<<grid, block>>>(vec3(0.0f), tmp_pixels);
 					gpuErrchk(cudaDeviceSynchronize());
@@ -600,7 +599,13 @@ void shadow_render(glm::vec3* world_verts_cuda,
 
 void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
 	// ----------------------------------------------- Masks ----------------------------------------------------
-	int grid = 512, block = 32 * 4;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 
 	timer profiling;
 	profiling.tic();
@@ -631,14 +636,13 @@ void mask_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_p
 
 void normal_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
 	// ----------------------------------------------- Normal ----------------------------------------------------
-
-	//if(resume) {
-	//	if(exists_test(output_fname)) {
-	//		std::cout << output_fname << " is skipped \n";
-	//		continue;
-	//	}
-	//}
-	int grid = 512, block = 32 * 4;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 
 	timer profiling;
 	profiling.tic();
@@ -668,14 +672,13 @@ void normal_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur
 
 void depth_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
 	// ----------------------------------------------- Depth ----------------------------------------------------
-
-	//if(resume) {
-	//	if(exists_test(output_fname)) {
-	//		std::cout << output_fname << " is skipped \n";
-	//		continue;
-	//	}
-	//}
-	int grid = 512, block = 32 * 4;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 
 	timer profiling;
 	profiling.tic();
@@ -703,7 +706,13 @@ void depth_render(glm::vec3* world_verts_cuda, int N, AABB* aabb_cuda, ppc &cur_
 }
 
 void ground_render(plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
-	int grid = 512, block = 32 * 4;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 	timer profiling;
 	profiling.tic();
 	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
@@ -727,7 +736,13 @@ void ground_render(plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsign
 }
 
 void heightmap_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
-	int grid = 512, block = 32 * 4;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 	timer profiling;
 	profiling.tic();
 	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
@@ -752,7 +767,13 @@ void heightmap_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* grou
 
 
 void touch_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
-	int grid = 512, block = (256 * 256 + grid -1)/grid;
+	if(resume) {
+		if(exists_test(output_fname)) {
+			std::cout << output_fname << " is skipped \n";
+			return;
+		}
+	}
+	int grid = 512, block = (w * h + grid -1)/grid;
 	timer profiling;
 	profiling.tic();
 	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
@@ -780,10 +801,10 @@ void render_data(const std::string model_file, const std::string output_folder) 
     
 	// load render target
 	if (load_mesh(model_file, render_target)) {
-		std::cerr << "Loading success \n";
+		std::cerr << model_file + "Loading success \n";
 	}
 	else {
-		std::cerr << "Loading failed \n";
+		std::cerr << model_file + "Loading failed \n";
 	}
     
     cudaSetDevice(dev);
@@ -800,7 +821,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	float offset = 0.0f - lowest_point.y;
 	render_target->m_world = glm::translate(vec3(0.0, offset, 0.0)) * render_target->m_world;
 
-	plane cur_plane = { vec3(0.0f), vec3(0.0f, 1.0f, 0.0f) };
+	plane cur_plane = { vec3(0.0f,-1.0f,0.0f), vec3(0.0f, 1.0f, 0.0f) };
 
 	// set camera position
 	std::shared_ptr<ppc> cur_ppc = std::make_shared<ppc>(w, h, 65.0f);
