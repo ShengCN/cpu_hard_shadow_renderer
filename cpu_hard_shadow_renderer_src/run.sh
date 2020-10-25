@@ -1,1 +1,3 @@
-sudo nvprof ./hard_shadow --model="../..//simplified_models/simulated_combine_female_long_fullbody_bridget8_wildwind_ssradclosedrobe_Base_Pose_Standing_C.obj" --output="./output/simulated_combine_female_long_fullbody_bridget8_wildwind_ssradclosedrobe_Base_Pose_Standing_C" --cam_pitch=0,15,30 --model_rot=0,90,-90,45,-45 --render_mask --render_normal --render_ground --render_height --render_shadow
+make -j8
+sudo rm airplane/*shadow.png
+sudo nvprof ./hard_shadow --model="/home/ysheng/Dataset/general_models/airplane_0415.off" --output="airplane" --cam_pitch=0 --model_rot=0,90,-90,45,-45 --render_mask --render_shadow --render_normal

@@ -233,6 +233,9 @@ def render(args, model_files):
     os.makedirs(touch_out, exist_ok=True)
     
     for i, mf in enumerate(tqdm(model_files)):
+        if i < args.start_id or i >= args.end_id:
+            continue
+
         if args.base:
             render_bases(args, [mf])
         else:
@@ -242,15 +245,15 @@ def render(args, model_files):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process some integers.')
     parser.add_argument('--gpu', default=0, type=int, help='GPU device')
-    parser.add_argument('--start_id', default=0, type=int, help='Start file id, range [0, 65]')
-    parser.add_argument('--end_id', default=66, type=int, help='End file id, range [0, 65]')
+    parser.add_argument('--num', default=88, type=int, help='How many models?')
+    parser.add_argument('--start_id', default=0, type=int, help='Current running example start id?')
+    parser.add_argument('--end_id', default=20, type=int, help='Current running example end id?')
     parser.add_argument("--resume", help="skip the rendered image", action="store_true")
     parser.add_argument("--cam_pitch", type=str,help="list of camera pitch")
     parser.add_argument("--model_rot", type=str, help="list of model rotation")
     parser.add_argument("--model_folder", type=str, help="model folder")
     parser.add_argument("--out_folder", type=str, help="dataset output folder")
     parser.add_argument("--base", default=False, action='store_true', help="render_base")
-    parser.add_argument("--random", default=False, action='store_true', help="randomly select models")
     args = parser.parse_args()
 
     print('parameters: {}'.format(args))
@@ -260,13 +263,9 @@ if __name__ == '__main__':
     print('There are {} model files'.format(len(model_files)))
     model_files.sort()
 
-
-    end = min(len(model_files), args.end_id + 1)
-    if args.random:
-        random.seed(19920208)
-        model_files = random.sample(model_files, end - args.start_id + 1)
-    else:
-        model_files = model_files[args.start_id : end]
+    end = min(len(model_files), args.num)
+    random.seed(19920208)
+    model_files = random.sample(model_files, end)
     
     print('Will render {} files'.format(len(model_files)))
     begin = time.time()
