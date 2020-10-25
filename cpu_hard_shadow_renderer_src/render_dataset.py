@@ -260,11 +260,13 @@ if __name__ == '__main__':
     print('There are {} model files'.format(len(model_files)))
     model_files.sort()
 
+
+    end = min(len(model_files), args.end_id + 1)
     if args.random:
         random.seed(19920208)
-        model_files = random.sample(model_files, args.end_id - args.start_id + 1)
+        model_files = random.sample(model_files, end - args.start_id + 1)
     else:
-        model_files = model_files[args.start_id : args.end_id+1]
+        model_files = model_files[args.start_id : end]
     
     print('Will render {} files'.format(len(model_files)))
     begin = time.time()

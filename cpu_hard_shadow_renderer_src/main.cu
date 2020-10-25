@@ -125,34 +125,25 @@ vec3 compute_light_pos(int x, int y, int w = 512, int h = 256) {
 
 __host__ __device__
 float ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret) {
-	constexpr float kEpsilon = 1e-8;
-	vec3 v0v1 = p1 - p0;
-	vec3 v0v2 = p2 - p0;
-	vec3 pvec = glm::cross(r.rd, v0v2);
-	float det = glm::dot(v0v1, pvec);
-	// if the determinant is negative the triangle is backfacing
-	// if the determinant is close to 0, the ray misses the triangle
-	if (det < kEpsilon) {
+	glm::vec3 v0v1 = p1 - p0;
+	glm::vec3 v0v2 = p2 - p0;
+	glm::mat3 m;
+	m[0] = -r.rd; m[1] = v0v1; m[2] = v0v2;
+	glm::vec3 b = r.ro - p0;
+
+	if (glm::determinant(m) < 1e-6f) {
 		ret = false;
-		return 0.0;
-	}
-	float invDet = 1 / det;
-	vec3 tvec = r.ro - p0;
-	float u = glm::dot(tvec, pvec) * invDet;
-	if (u < 0 || u > 1) {
-		ret = false;
-		return 0.0;
+		return 0.0f;
 	}
 
-	vec3 qvec = glm::cross(tvec, v0v1);
-	float v = glm::dot(r.rd, qvec) * invDet;
-	if (v < 0 || u + v > 1) {
-		ret = false;
-		return 0.0;
+	glm::vec3 x = glm::inverse(m) * b;
+	float t = x.x, u = x.y, v = x.z;
+	if (t <= 0.0 || u < 0.0 || v < 0.0 || u > 1.0 || v >1.0 || u + v < 0.0 || u + v > 1.0) {
+		ret = false; return 0.0f;
 	}
 	
 	ret = true;
-	return invDet * glm::dot(v0v2, qvec);	
+	return std::sqrt(glm::dot(r.rd * t, r.rd * t));
 }
 
 __host__ __device__
@@ -821,7 +812,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 	float offset = 0.0f - lowest_point.y;
 	render_target->m_world = glm::translate(vec3(0.0, offset, 0.0)) * render_target->m_world;
 
-	plane cur_plane = { vec3(0.0f,-1.0f,0.0f), vec3(0.0f, 1.0f, 0.0f) };
+	plane cur_plane = { vec3(0.0f,0.0f,0.0f), vec3(0.0f, 1.0f, 0.0f) };
 
 	// set camera position
 	std::shared_ptr<ppc> cur_ppc = std::make_shared<ppc>(w, h, 65.0f);
