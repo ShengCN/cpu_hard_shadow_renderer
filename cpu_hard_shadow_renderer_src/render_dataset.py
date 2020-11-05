@@ -82,6 +82,11 @@ def multithreading_post_process(folder, output_folder, base_size=16):
     group_np = np.zeros((256,256, x_iter, y_iter))
     input_list = []
     for pitch_rot in pitch_rot_list:
+        base_pitch_rot = os.path.basename(pitch_rot)
+        output_path = os.path.join(output_folder, '{}_shadow.npy'.format(base_pitch_rot))
+        if os.path.exists(output_path):
+            continue
+        
         for xi in tqdm(range(x_iter)):
             for yi in range(y_iter):
                 tuple_input = [xi, yi]
@@ -100,8 +105,6 @@ def multithreading_post_process(folder, output_folder, base_size=16):
                 group_np[:,:,x,y] = base_np * base_weight
                 print("Finished: {} \r".format(float(i) / task_num), flush=True, end='')
         
-        base_pitch_rot = os.path.basename(pitch_rot)
-        output_path = os.path.join(output_folder, '{}_shadow.npy'.format(base_pitch_rot))
         np.save(output_path, group_np)
     del group_np
 

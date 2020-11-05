@@ -131,7 +131,7 @@ float ray_triangle_intersect(const ray& r, vec3 p0, vec3 p1, vec3 p2, bool& ret)
 	m[0] = -r.rd; m[1] = v0v1; m[2] = v0v2;
 	glm::vec3 b = r.ro - p0;
 
-	if (glm::determinant(m) < 1e-6f) {
+	if (std::abs(glm::determinant(m)) < 1e-6f) {
 		ret = false;
 		return 0.0f;
 	}
@@ -489,25 +489,35 @@ void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane,
 		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
 		ray_aabb_intersect(r, aabb, ret);
 		if (ret) {
-			ret = false;
-			float closest_z = FLT_MAX;
+			float lowest_point = FLT_MAX;
+			float max_z = -FLT_MAX;
 			for (int ti = 0; ti < N / 3; ti += 1) {
 				vec3 p0 = world_verts[3 * ti + 0];
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
-				
-				vec3 center = (p0 + p1 + p2) /3.0f;
-				float distance_ground = glm::dot(center - ground_plane->p, ground_plane->n);	
-				// printf("distance: %f", distance_ground);
-				if(std::abs(distance_ground) > 0.04f)
-					continue;
 
+				ret = false;
+				r.rd = glm::normalize(r.rd);
 				float z = ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret &&  z < closest_z) {
-					pixels[cur_ind] = vec3(1.0f);
+				if (ret) {
+					if (z > max_z) max_z = z;
+
+					glm::vec3 intersect_point = r.ro + glm::normalize(r.rd) * z;
+					vec3 delta_v = intersect_point - ground_plane->p;
+					float distance_ground = std::abs(delta_v.y);	
+					if (lowest_point > distance_ground) 
+						lowest_point = distance_ground;
 				}
 			}
-		}
+			
+			glm::vec3 dia = aabb->p1 - aabb->p0;
+			float aabb_height = dia.y;
+
+			// pixels[cur_ind] = vec3(lowest_point/aabb_height);
+			if(lowest_point/aabb_height <= 0.2f) {
+				pixels[cur_ind] = vec3(1.0f);
+			}
+		} 
 	}
 }
 
