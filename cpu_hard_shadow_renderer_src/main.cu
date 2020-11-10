@@ -514,7 +514,7 @@ void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane,
 			float aabb_height = dia.y;
 
 			// pixels[cur_ind] = vec3(lowest_point/aabb_height);
-			if(lowest_point/aabb_height <= 0.2f) {
+			if(lowest_point/aabb_height <= 0.1f) {
 				pixels[cur_ind] = vec3(1.0f);
 			}
 		} 
