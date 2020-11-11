@@ -29,8 +29,8 @@ def worker(input_param):
     os.makedirs(output_folder, exist_ok=True)
     
     newest_prefix = get_newest_prefix(output_folder)
-    os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow --render_touch'.format(model, model_id, output_folder, gpu, resume,cam_pitch, model_rot))
-    # os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_touch'.format(model, model_id, output_folder, gpu, False,cam_pitch, model_rot))
+    # os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_shadow --render_touch'.format(model, model_id, output_folder, gpu, resume,cam_pitch, model_rot))
+    os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_touch'.format(model, model_id, output_folder, gpu, False,cam_pitch, model_rot))
     # os.system('build/hard_shadow --model={} --model_id={} --output={} --gpu={} --resume={} --cam_pitch={} --model_rot={} --render_mask --render_normal --render_depth --render_ground --render_touch'.format(model, model_id, output_folder, gpu, resume,cam_pitch, model_rot))
               
 def base_compute(param):

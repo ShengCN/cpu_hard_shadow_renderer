@@ -476,7 +476,7 @@ void raster_height(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane
 }
 
 __global__
-void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane, ppc cur_ppc, glm::vec3 *pixels) {
+void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane, ppc cur_ppc, vec3 *samples, int sn,glm::vec3 *pixels) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int i_stride = blockDim.x * gridDim.x;
 
@@ -487,37 +487,42 @@ void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane,
 
 		bool ret = false;
 		ray r; cur_ppc.get_ray(i, j, r.ro, r.rd);
-		ray_aabb_intersect(r, aabb, ret);
-		if (ret) {
-			float lowest_point = FLT_MAX;
-			float max_z = -FLT_MAX;
+		vec3 intersect;
+		if (!plane_ppc_intersect(ground_plane, r, intersect)) {
+			continue;
+		}
+		
+		float vis = 0.0f;
+		for(int si = 0; si < sn; ++si) {
+			r.rd = samples[si];
+			r.ro = intersect;
+			
+			ret = false;
+			ray_aabb_intersect(r, aabb, ret);
+			if(!ret) {
+				continue;
+			}
+			
 			for (int ti = 0; ti < N / 3; ti += 1) {
 				vec3 p0 = world_verts[3 * ti + 0];
 				vec3 p1 = world_verts[3 * ti + 1];
 				vec3 p2 = world_verts[3 * ti + 2];
 
 				ret = false;
-				r.rd = glm::normalize(r.rd);
-				float z = ray_triangle_intersect(r, p0, p1, p2, ret);
-				if (ret) {
-					if (z > max_z) max_z = z;
-
-					glm::vec3 intersect_point = r.ro + glm::normalize(r.rd) * z;
-					vec3 delta_v = intersect_point - ground_plane->p;
-					float distance_ground = std::abs(delta_v.y);	
-					if (lowest_point > distance_ground) 
-						lowest_point = distance_ground;
+				ray_triangle_intersect(r, p0, p1, p2, ret);
+				if(ret) {
+					vis += 1;
+					break;
 				}
 			}
-			
-			glm::vec3 dia = aabb->p1 - aabb->p0;
-			float aabb_height = dia.y;
+		}
+		vis = vis / (float)sn * 4.0 * pd::pi;
+		
+		if (vis > 1.0f) vis = 1.0f;
+		vis = vis * vis * vis;
 
-			// pixels[cur_ind] = vec3(lowest_point/aabb_height);
-			if(lowest_point/aabb_height <= 0.1f) {
-				pixels[cur_ind] = vec3(1.0f);
-			}
-		} 
+		// if (vis < 0.5f) vis = 0.0f;
+		pixels[cur_ind] = vec3(vis);
 	}
 }
 
@@ -766,6 +771,27 @@ void heightmap_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* grou
 	out_img.save(output_fname);
 }	
 
+std::vector<vec2> uniform_sphere_2d_samples(int n) {
+    std::vector<vec2> ret(n);
+    for(int i = 0;i < n; ++i) {
+        float x = pd::random_float();
+        float y = pd::random_float();
+        ret[i] = vec2(std::acos(std::sqrt(1.0f - x)), 2.0f * pd::pi * y);
+    }
+    return ret;
+}
+
+std::vector<vec3> uniform_sphere_3d_samples(int n) {
+    auto samples = uniform_sphere_2d_samples(n);
+    std::vector<vec3> ret(n);
+
+    for(int i = 0; i < n; ++i) {
+        float a = samples[i].x, b = samples[i].y;
+        vec3 p(std::sin(a) * std::cos(b), std::cos(a), std::sin(a) * std::sin(b));
+		ret[i] = p;
+    }
+    return ret;
+}
 
 void touch_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_plane,  ppc &cur_ppc, glm::vec3* pixels, unsigned int* out_pixels, image &out_img, std::string output_fname) {
 	if(resume) {
@@ -780,7 +806,12 @@ void touch_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_p
 	reset_pixel<<<grid, block>>> (vec3(0.0f), pixels);
 	gpuErrchk(cudaDeviceSynchronize());
 	
-	raster_touch << <grid, block>> > (world_verts_cuda, N, aabb, ground_plane, cur_ppc, pixels);
+	auto samples = uniform_sphere_3d_samples(1000);
+	vec3 *cuda_samples;
+	cudaMalloc(&cuda_samples, sizeof(vec3) * samples.size());
+	cudaMemcpy(cuda_samples, samples.data(), (int)samples.size(), cudaMemcpyHostToDevice);
+
+	raster_touch << <grid, block>> > (world_verts_cuda, N, aabb, ground_plane, cur_ppc, cuda_samples, (int)samples.size(), pixels);
 	
 	gpuErrchk(cudaPeekAtLastError());	
 	gpuErrchk(cudaDeviceSynchronize());
@@ -795,6 +826,7 @@ void touch_render(glm::vec3 *world_verts_cuda, int N, AABB* aabb,plane* ground_p
 		std::cerr << "touch total time: " << total_time << std::endl;
 	}
 	out_img.save(output_fname);
+	cudaFree(cuda_samples);
 }	
 
 void render_data(const std::string model_file, const std::string output_folder) {
