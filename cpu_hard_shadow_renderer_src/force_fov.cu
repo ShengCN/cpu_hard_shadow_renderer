@@ -30,6 +30,7 @@ std::vector<float> cam_pitch, model_rot;
 timer profiling;
 std::string model_file, output_folder;
 bool render_shadow, render_mask, render_normal, render_depth, render_ground, render_height, render_touch;
+int fov=90;
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
@@ -520,8 +521,6 @@ void raster_touch(glm::vec3 *world_verts, int N, AABB* aabb,plane *ground_plane,
 		
 		if (vis > 1.0f) vis = 1.0f;
 		vis = vis * vis * vis;
-
-		// if (vis < 0.5f) vis = 0.0f;
 		pixels[cur_ind] = vec3(vis);
 	}
 }
@@ -904,11 +903,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			float old_focal = cur_ppc->get_focal();
 			float old_dist = glm::length(ppc_relative);
 
-			float random_fov = pd::normal_random(60,40);
-			while(random_fov<=20 || random_fov >=140) {
-				random_fov = pd::normal_random(60,40);
-			}
-			cur_ppc->set_fov(random_fov);
+			cur_ppc->set_fov(fov);
 			float new_focal = cur_ppc->get_focal();
 			float new_dist = old_dist / old_focal * new_focal;
 			vec3 new_relative = vec3(0.0f,0.0f,new_dist);
@@ -942,7 +937,7 @@ void render_data(const std::string model_file, const std::string output_folder) 
 			cur_ppc->pitch(-(cur_ppc->get_fov() * 0.5f - ang_rad));
 			
 			std::string cur_prefix, output_fname;
-			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_fov_%d", (int)camera_pitch, (int)target_rot, (int)random_fov);
+			char buff[100]; snprintf(buff, sizeof(buff), "pitch_%d_rot_%d_fov_%d", (int)camera_pitch, (int)target_rot, (int)fov);
 			cur_prefix = buff;
 
 			// ------------------------------------ mask ------------------------------------ //
@@ -1014,6 +1009,7 @@ int main(int argc, char *argv[]) {
 		.add_options()
 		("cam_pitch", "A list of camera pitches", cxxopts::value<std::vector<float>>())
 		("model_rot", "A list of model rotations", cxxopts::value<std::vector<float>>())
+		("fov", "force using specific fov", cxxopts::value<int>())
 		("resume","Skip those rendered images?",cxxopts::value<bool>()->default_value("false"))
 		("verbose","verbose time? ",cxxopts::value<bool>()->default_value("true"))
 		("gpu","graphics card",cxxopts::value<int>()->default_value("0"))
@@ -1046,6 +1042,11 @@ int main(int argc, char *argv[]) {
 		} else {
 			std::cout << "please set camera pitch \n";
 			exit(0);
+		}
+		
+		if(result.count("fov")) {
+			fov = result["fov"].as<int>();
+			std::cout << "Using force fov " << fov << std::endl;
 		}
 	
 		if(result.count("model_rot")) {
